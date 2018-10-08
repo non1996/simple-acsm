@@ -44,7 +44,3 @@ void acsm_prepare(acsm *self);
 bool acsm_search_init_file(acsm *self, file_stream *text, output_handle cb, void *cb_arg);
 bool acsm_search_init_string(acsm *self, fixed_wstring *text, output_handle cb, void *cb_arg);
 bool acsm_search(acsm *self);
-
-#ifdef TEST
-void acsm_print_tree(acsm *self);
-#endif
