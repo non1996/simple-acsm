@@ -8,12 +8,14 @@
 #define USE_FILE_STREAM 0
 #define USE_STRING		1
 
-#define BR_COLOR_RED		0
-#define BR_COLOR_BLACK		1
+#define RB_RED			0
+#define RB_BLACK		1
 
 class(rbtree_node) {
 	rbtree_node *parent, *left, *right;
+	wchar key;
 	uint8_t color;
+	uint8_t padding;
 };
 
 class(rbtree) {
@@ -34,6 +36,115 @@ constructor(rbtree) {
 
 distructor(rbtree) {
 
+}
+
+#define parent(node) node->parent
+#define left(node) node->left
+#define right(node) node->right
+#define grand(node) node->parent->parent
+#define right_uncle(node) grand(node)->right
+#define left_uncle(node) grand(node)->left
+
+static inline void rbtree_left_rotate(rbtree *self, rbtree_node *curr, rbtree_node *nil) {
+	rbtree_node *curr_right = curr->right;
+	curr->right = curr_right->left;
+	if (curr_right != nil)
+		curr_right->left->parent = curr;
+	curr_right->parent = curr->parent;
+	if (curr->parent == nil)
+		self->root = curr_right;
+	else if (curr == curr->parent->left)
+		curr->parent->left = curr_right;
+	else
+		curr->parent->right = curr_right;
+
+	curr_right->left = curr;
+	curr->parent = curr_right;
+}
+
+static inline void rbtree_right_rotate(rbtree *self, rbtree_node *curr, rbtree_node *nil) {
+	rbtree_node *curr_left = curr->left;
+	curr->left = curr_left->right;
+	if (curr_left->right != nil)
+		curr_left->right->parent = curr;
+	if (curr->parent == nil)
+		self->root = curr_left;
+	else if (curr == curr->parent->left)
+		curr->parent->left = curr_left;
+	else
+		curr->parent->right = curr_left;
+
+	curr_left->right = curr;
+	curr->parent = curr_left;
+}
+
+static inline void rbtree_fix(rbtree *self, rbtree_node *start, rbtree_node *nil) {
+	while (parent(start)->color == RB_RED) {
+		if (parent(start) == grand(start)->left) {
+			if (right_uncle(start)->color == RB_RED) {
+				parent(start)->color = RB_BLACK;
+				right_uncle(start)->color = RB_BLACK;
+				grand(start)->color = RB_RED;
+				start = grand(start);
+			}
+			else if (start == parent(start)->right) {
+				start = parent(start);
+				rbtree_left_rotate(self, start, nil);
+			}
+			parent(start)->color = RB_BLACK;
+			grand(start)->color = RB_RED;
+			rbtree_right_rotate(self, grand(start), nil);
+		}
+		else {
+			if (left_uncle(start)->color == RB_RED) {
+				parent(start)->color = RB_BLACK;
+				left_uncle(start)->color = RB_BLACK;
+				grand(start)->color = RB_RED;
+				start = grand(start);
+			}
+			else if (start == parent(start)->left) {
+				start = parent(start);
+				rbtree_right_rotate(self, start, nil);
+			}
+			parent(start)->color = RB_BLACK;
+			grand(start)->color = RB_RED;
+			rbtree_left_rotate(self, grand(start), nil);
+		}
+	}
+	self->root->color = RB_BLACK;
+}
+
+static inline void rbtree_insert(rbtree *self, rbtree_node *node, rbtree_node *nil) {
+	rbtree_node *iter = self->root;
+	rbtree_node *parent = nil;
+	while (iter != nil) {
+		parent = iter;
+		if (node->key < iter->key)
+			iter = iter->left;
+		else
+			iter = iter->right;
+	}
+
+	node->parent = parent;
+	if (parent == nil)
+		self->root = node;
+	else if (node->key < parent->key)
+		parent->left = node;
+	else
+		parent->right = node;
+	node->left = node->right = nil;
+	node->color = RB_RED;
+	rbtree_fix(self, node, nil);
+}
+
+static inline rbtree_node *rbtree_find(rbtree *self, rbtree_node *nil, wchar key) {
+	rbtree_node *iter = self->root;
+	while (iter != nil) {
+		if (iter->key == key)
+			return iter;
+		iter = key < iter->key ? iter->left : iter->right;
+	}
+	return nullptr;
 }
 
 class(ac_node) {
