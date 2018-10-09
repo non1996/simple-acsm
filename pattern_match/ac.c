@@ -13,9 +13,9 @@
 static inline p_ac_node acsm_find_child(acsm *self, p_ac_node p, wchar key);
 static inline ac_node *acsm_new_node(acsm * self, wchar key);
 static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern, uint32_t ptn_id,
-	p_ac_node *parent, uint32_t *rest, bool *repeat);
+	p_ac_node *parent, bool *repeat);
 static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child);
-static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *pattern, size_t start, uint32_t pattern_id);
+static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *pattern, uint32_t pattern_id);
 static inline void acsm_children_inqueue_helper(acsm *self, queue *q, rbtree_node *node);
 static inline void acsm_find_fail(acsm *self, p_ac_node node);
 static inline void acsm_children_inqueue(acsm *self, queue *q, p_ac_node p);
@@ -70,32 +70,26 @@ static inline p_ac_node acsm_find_child(acsm *self, p_ac_node p, wchar key) {
 	return rb_to_ac(rbtree_find(children(p), self->nil, key));
 }
 
-static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern, uint32_t ptn_id, 
-									p_ac_node *parent, uint32_t *rest, bool *repeat) {
+static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern, 
+	uint32_t ptn_id, p_ac_node *parent, bool *repeat) {
 	p_ac_node node_iter = self->root, child_iter;
-	size_t pattern_length = fixed_wstring_size(pattern);
-	uint32_t index;
 
-	if (!pattern_length) {
-		*repeat = true;
-		return false;
-	}
+	assert(fixed_wstring_size(pattern));
 
-	for (index = 0; index < pattern_length; ++index) {
-		child_iter = acsm_find_child(self, node_iter, fixed_wstring_at(pattern, index));
+	for (fixed_wstring_begin(pattern); !fixed_wstring_getend(pattern); fixed_wstring_next(pattern)) {
+		child_iter = acsm_find_child(self, node_iter, fixed_wstring_get(pattern));
 
 		//	rest nodes should be inserted as *parent's child
 		if (!child_iter) {
 			*parent = node_iter;
-			*rest = index;
 			return true;
 		}
 		node_iter = child_iter;
 	}
 
-	if (child_iter->match_id == 0) 
+	if (child_iter->match_id == 0)
 		child_iter->match_id = ptn_id;
-	else 
+	else
 		*repeat = true;
 	return false;
 }
@@ -112,16 +106,17 @@ static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child)
 	child->parent = parent;
 }
 
-static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *pattern, size_t start, uint32_t pattern_id) {
+static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *pattern, uint32_t pattern_id) {
 	p_ac_node new_node, list = nullptr, tail;
 	size_t pattern_length = fixed_wstring_size(pattern);
 	uint32_t index;
 
-	new_node = acsm_new_node(self, fixed_wstring_at(pattern, start));
+	new_node = acsm_new_node(self, fixed_wstring_get(pattern));
+	fixed_wstring_next(pattern);
 	list = tail = new_node;
 
-	for (index = start + 1; index < pattern_length; ++index) {
-		new_node = acsm_new_node(self, fixed_wstring_at(pattern, index));
+	for (; !fixed_wstring_getend(pattern); fixed_wstring_next(pattern)) {
+		new_node = acsm_new_node(self, fixed_wstring_get(pattern));
 		acsm_add_child(self, tail, new_node);
 		tail = new_node;
 	}
@@ -132,15 +127,14 @@ static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *patter
 
 bool acsm_add_pattern(acsm * self, fixed_wstring *pattern, uint32_t ptn_id) {
 	bool repeat = false;
-	int start_index;
 	p_ac_node insert, branch_first;
 
 	if (bitset_is_set(self->patterns, ptn_id)) {
 		return false;
 	}
 
-	if (acsm_should_insert(self, pattern, ptn_id, &insert, &start_index, &repeat)) {
-		branch_first = acsm_construct_subtree(self, pattern, start_index, ptn_id);
+	if (acsm_should_insert(self, pattern, ptn_id, &insert, &repeat)) {
+		branch_first = acsm_construct_subtree(self, pattern, ptn_id);
 		acsm_add_child(self, insert, branch_first);
 		bitset_set(self->patterns, ptn_id);
 		self->pattern_num++;
@@ -233,7 +227,6 @@ bool acsm_search_init_string(acsm * self, fixed_wstring * text, output_handle cb
 	}
 
 	self->text = text;
-	self->curr_index = 0;
 	self->search_type = USE_STRING;
 	acsm_search_init(self, cb, cb_arg);
 	return true;
@@ -241,21 +234,21 @@ bool acsm_search_init_string(acsm * self, fixed_wstring * text, output_handle cb
 
 static inline bool acsm_search_getend(acsm *self) {
 	if (self->search_type == USE_STRING)
-		return self->curr_index >= fixed_wstring_size(self->text);
+		return fixed_wstring_getend(self->text);
 	else
 		return file_stream_getend(self->fs);
 }
 
 static inline wchar acsm_curr_key(acsm *self) {	// < :
 	if (self->search_type == USE_STRING)
-		return fixed_wstring_at(self->text, self->curr_index);
+		return fixed_wstring_get(self->text);
 	else
 		return file_stream_get(self->fs);
 }
 
 static inline void acsm_next(acsm *self) {
 	if (self->search_type == USE_STRING)
-		++self->curr_index;
+		fixed_wstring_next(self->text);
 	else if (self->search_type == USE_FILE_STREAM)
 		file_stream_next(self->fs);
 }

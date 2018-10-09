@@ -13,10 +13,7 @@ distructor(fixed_string) {
 }
 
 constructor(fixed_wstring, char *cstr) {
-	if (cstr) {
-		self->f.buffer = cstr;
-		self->f.size = strlen(cstr) >> 1;
-	}
+	fixed_string_constructor((fixed_string*)self, cstr);
 	constructor_end;
 }
 

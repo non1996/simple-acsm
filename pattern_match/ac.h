@@ -26,7 +26,6 @@ class(acsm){
 		file_stream *fs;
 	};
 
-	size_t curr_index;
 	p_ac_node curr_node;
 
 	output_handle cb;
