@@ -5,9 +5,24 @@
 #include "log.h"
 #include "file_stream.h"
 #include "rbtree.h"
+#include "allocator.h"
 
 #define USE_FILE_STREAM 0
 #define USE_STRING		1
+
+static inline p_ac_node acsm_find_child(acsm *self, p_ac_node p, wchar key);
+static inline ac_node *acsm_new_node(acsm * self, wchar key);
+static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern, uint32_t ptn_id,
+	p_ac_node *parent, uint32_t *rest, bool *repeat);
+static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child);
+static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *pattern, size_t start, uint32_t pattern_id);
+static inline void acsm_children_inqueue_helper(acsm *self, queue *q, rbtree_node *node);
+static inline void acsm_find_fail(acsm *self, p_ac_node node);
+static inline void acsm_children_inqueue(acsm *self, queue *q, p_ac_node p);
+static inline void acsm_search_init(acsm * self, output_handle cb, void * cb_arg);
+static inline bool acsm_search_getend(acsm *self);
+static inline wchar acsm_curr_key(acsm *self);
+static inline void acsm_next(acsm *self);
 
 class(ac_node) {
 	rbtree_node rb;
@@ -15,6 +30,8 @@ class(ac_node) {
 	rbtree children;
 	uint32_t match_id;
 };
+
+ALLOCATOR_IMPL(ac_node);
 
 #define ac_to_rb(node) ((rbtree_node*)node)
 #define rb_to_ac(node) ((ac_node*)node)
@@ -30,15 +47,19 @@ constructor(ac_node, rbtree_node *nil, wchar key) {
 }
 
 constructor(acsm) {
+	self->ac_alloc = allocator_new(ac_node)();
 	self->patterns = new(bitset, 2260000);
 	self->nil = new(rbtree_node, RB_BLACK);
-	self->root = new(ac_node, self->nil, 0x0000u);
+	//self->root = new(ac_node, self->nil, 0x0000u);
+	self->root = acsm_new_node(self, 0x0000u);
 	self->root->faillink = self->root;
 	
+
 	constructor_end;
 }
 
 distructor(acsm) {
+	allocator_delete(ac_node)(self->ac_alloc);
 	delete(bitset, self->patterns);
 }
 
@@ -80,7 +101,10 @@ static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern, uint32
 }
 
 static inline ac_node *acsm_new_node(acsm * self, wchar key) {
-	return new(ac_node, self->nil, key);
+	ac_node *new_node;
+	new_node = allocator_allocate(ac_node)(self->ac_alloc, 1);
+	allocator_construct(ac_node)(new_node, self->nil, key);
+	return new_node;
 }
 
 static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "afx.h"
+#include "allocator.h"
 
 class_decl(file_stream);
 class_decl(fixed_string);
@@ -9,6 +10,7 @@ class_decl(ac_node);
 class_decl(acsm);
 class_decl(bitset);
 class_decl(rbtree_node);
+ALLOCATOR_DECL(ac_node);
 typedef ac_node *p_ac_node;
 
 typedef void(*output_handle)(uint32_t pattern_id, void *arg);
@@ -31,6 +33,8 @@ class(acsm){
 	void *cb_arg;
 
 	rbtree_node *nil;
+
+	allocator(ac_node) *ac_alloc;
 
 	bool is_init, is_end, is_prep;
 	uint8_t search_type;

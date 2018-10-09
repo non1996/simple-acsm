@@ -13,6 +13,8 @@ constructor(raw_allocator);
 distructor(raw_allocator);
 void *raw_allocator_allocate(raw_allocator *self, size_t n, size_t meta_size);
 
+#define ALLOCATOR_DECL(type) class_decl(allocator_ ## type)
+
 #define ALLOCATOR_IMPL(type) \
 class(allocator_ ## type) { \
 	raw_allocator a; \
@@ -21,7 +23,7 @@ static inline allocator_ ## type *allocator_ ## type ## _new() { \
 	return (allocator_ ## type*)new(raw_allocator); \
 } \
 static inline void allocator_ ## type ## _delete(allocator_ ## type *self) { \
-	delete(raw_allocator, self); \
+	delete(raw_allocator, (raw_allocator*)self); \
 } \
 static inline type *allocator_ ## type ## _allocate(allocator_ ## type *self, size_t n) { \
 	return (type*)raw_allocator_allocate((raw_allocator*)self, n, sizeof(type)); \
