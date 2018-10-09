@@ -9,6 +9,7 @@ static inline void *mem_alloc_fn(size_t size) {
 	if (size == 0)
 		return NULL;
 	buf = malloc(size);
+	assert(buf);
 	return buf;
 }
 
@@ -23,7 +24,7 @@ static inline void *mem_alloc_zero_fn(size_t size) {
 
 static inline void *mem_realloc_fn(void *ptr, size_t new_size) {
 	void *buf = realloc(ptr, new_size);
-	assert(buf != NULL);
+	assert(buf);
 	return buf;
 }
 

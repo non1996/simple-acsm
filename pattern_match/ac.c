@@ -4,148 +4,10 @@
 #include "bitset.h"
 #include "log.h"
 #include "file_stream.h"
+#include "rbtree.h"
 
 #define USE_FILE_STREAM 0
 #define USE_STRING		1
-
-#define RB_RED			0
-#define RB_BLACK		1
-
-class(rbtree_node) {
-	rbtree_node *parent, *left, *right;
-	wchar key;
-	uint8_t color;
-	uint8_t padding;
-};
-
-class(rbtree) {
-	rbtree_node *root;
-};
-
-constructor(rbtree_node) {
-	constructor_end;
-}
-
-distructor(rbtree_node) {
-
-}
-
-constructor(rbtree) {
-
-}
-
-distructor(rbtree) {
-
-}
-
-#define rb_parent(node) node->parent
-#define rb_left(node) node->left
-#define rb_right(node) node->right
-#define rb_grand(node) node->parent->parent
-#define rb_right_uncle(node) rb_grand(node)->right
-#define rb_left_uncle(node) rb_grand(node)->left
-
-static inline void rbtree_left_rotate(rbtree *self, rbtree_node *curr, rbtree_node *nil) {
-	rbtree_node *curr_right = curr->right;
-	curr->right = curr_right->left;
-	if (curr_right != nil)
-		curr_right->left->parent = curr;
-	curr_right->parent = curr->parent;
-	if (curr->parent == nil)
-		self->root = curr_right;
-	else if (curr == curr->parent->left)
-		curr->parent->left = curr_right;
-	else
-		curr->parent->right = curr_right;
-
-	curr_right->left = curr;
-	curr->parent = curr_right;
-}
-
-static inline void rbtree_right_rotate(rbtree *self, rbtree_node *curr, rbtree_node *nil) {
-	rbtree_node *curr_left = curr->left;
-	curr->left = curr_left->right;
-	if (curr_left->right != nil)
-		curr_left->right->parent = curr;
-	if (curr->parent == nil)
-		self->root = curr_left;
-	else if (curr == curr->parent->left)
-		curr->parent->left = curr_left;
-	else
-		curr->parent->right = curr_left;
-
-	curr_left->right = curr;
-	curr->parent = curr_left;
-}
-
-static inline void rbtree_fix(rbtree *self, rbtree_node *start, rbtree_node *nil) {
-	while (rb_parent(start)->color == RB_RED) {
-		if (rb_parent(start) == rb_grand(start)->left) {
-			if (rb_right_uncle(start)->color == RB_RED) {
-				rb_parent(start)->color = RB_BLACK;
-				rb_right_uncle(start)->color = RB_BLACK;
-				rb_grand(start)->color = RB_RED;
-				start = rb_grand(start);
-			}
-			else if (start == rb_parent(start)->right) {
-				start = rb_parent(start);
-				rbtree_left_rotate(self, start, nil);
-			}
-			rb_parent(start)->color = RB_BLACK;
-			rb_grand(start)->color = RB_RED;
-			rbtree_right_rotate(self, rb_grand(start), nil);
-		}
-		else {
-			if (rb_left_uncle(start)->color == RB_RED) {
-				rb_parent(start)->color = RB_BLACK;
-				rb_left_uncle(start)->color = RB_BLACK;
-				rb_grand(start)->color = RB_RED;
-				start = rb_grand(start);
-			}
-			else if (start == rb_parent(start)->left) {
-				start = rb_parent(start);
-				rbtree_right_rotate(self, start, nil);
-			}
-			rb_parent(start)->color = RB_BLACK;
-			rb_grand(start)->color = RB_RED;
-			rbtree_left_rotate(self, rb_grand(start), nil);
-		}
-	}
-	self->root->color = RB_BLACK;
-}
-
-static inline void rbtree_insert(rbtree *self, rbtree_node *node, rbtree_node *nil) {
-	rbtree_node *iter = self->root;
-	rbtree_node *parent = nil;
-	while (iter != nil) {
-		parent = iter;
-		if (node->key < iter->key)
-			iter = iter->left;
-		else
-			iter = iter->right;
-	}
-
-	node->parent = parent;
-	if (parent == nil)
-		self->root = node;
-	else if (node->key < parent->key)
-		parent->left = node;
-	else
-		parent->right = node;
-	node->left = node->right = nil;
-	node->color = RB_RED;
-	rbtree_fix(self, node, nil);
-}
-
-static inline rbtree_node *rbtree_find(rbtree *self, rbtree_node *nil, wchar key) {
-	rbtree_node *iter = self->root;
-	while (iter != nil) {
-		if (iter->key == key)
-			return iter;
-		iter = key < iter->key ? iter->left : iter->right;
-	}
-	return nullptr;
-}
 
 class(ac_node) {
 	rbtree_node rb;
@@ -158,12 +20,21 @@ class(ac_node) {
 #define rb_to_ac(node) ((ac_node*)node)
 #define children(node) (&(node->children))
 
-constructor(acsm) {
-	self->root = mem_alloc_zero(ac_node, 1);
-	self->root->faillink = self->root;
-	self->patterns = new(bitset, 2260000);
-	self->nil = new(rbtree_node);
+constructor(ac_node, rbtree_node *nil, wchar key) {
+	rbtree_node_constructor(self, RB_RED);
+	rbtree_constructor(children(self), nil);
+	self->rb.left = nil;
+	self->rb.right = nil;
+	self->rb.key = key;
+	constructor_end;
+}
 
+constructor(acsm) {
+	self->patterns = new(bitset, 2260000);
+	self->nil = new(rbtree_node, RB_BLACK);
+	self->root = new(ac_node, self->nil, 0x0000u);
+	self->root->faillink = self->root;
+	
 	constructor_end;
 }
 
@@ -175,7 +46,7 @@ static inline p_ac_node acsm_find_child(acsm *self, p_ac_node p, wchar key) {
 	if (!children(p)->root)
 		return nullptr;
 
-	return rbtree_find(children(p), self->nil, key);
+	return rb_to_ac(rbtree_find(children(p), self->nil, key));
 }
 
 static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern, uint32_t ptn_id, 
@@ -183,6 +54,11 @@ static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern, uint32
 	p_ac_node node_iter = self->root, child_iter;
 	size_t pattern_length = fixed_wstring_size(pattern);
 	uint32_t index;
+
+	if (!pattern_length) {
+		*repeat = true;
+		return false;
+	}
 
 	for (index = 0; index < pattern_length; ++index) {
 		child_iter = acsm_find_child(self, node_iter, fixed_wstring_at(pattern, index));
@@ -203,12 +79,13 @@ static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern, uint32
 	return false;
 }
 
-static inline ac_node *acsm_new_node(wchar key) {
-	p_ac_node new_node;
+static inline ac_node *acsm_new_node(acsm * self, wchar key) {
+	return new(ac_node, self->nil, key);
+}
 
-	new_node = mem_alloc_zero(ac_node, 1);
-	ac_to_rb(new_node)->key = key;
-	return new_node;
+static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child) {
+	rbtree_insert(children(parent), ac_to_rb(child), self->nil);
+	child->parent = parent;
 }
 
 static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *pattern, size_t start, uint32_t pattern_id) {
@@ -216,13 +93,12 @@ static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *patter
 	size_t pattern_length = fixed_wstring_size(pattern);
 	uint32_t index;
 
-	new_node = acsm_new_node(fixed_wstring_at(pattern, start));
+	new_node = acsm_new_node(self, fixed_wstring_at(pattern, start));
 	list = tail = new_node;
 
 	for (index = start + 1; index < pattern_length; ++index) {
-		new_node = acsm_new_node(fixed_wstring_at(pattern, index));
-		rbtree_insert(children(tail), ac_to_rb(new_node), self->nil);
-		new_node->parent = tail;
+		new_node = acsm_new_node(self, fixed_wstring_at(pattern, index));
+		acsm_add_child(self, tail, new_node);
 		tail = new_node;
 	}
 
@@ -233,16 +109,15 @@ static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *patter
 bool acsm_add_pattern(acsm * self, fixed_wstring *pattern, uint32_t ptn_id) {
 	bool repeat = false;
 	int start_index;
-	p_ac_node insert, branch_list;
+	p_ac_node insert, branch_first;
 
 	if (bitset_is_set(self->patterns, ptn_id)) {
 		return false;
 	}
 
 	if (acsm_should_insert(self, pattern, ptn_id, &insert, &start_index, &repeat)) {
-		branch_list = acsm_construct_subtree(self, pattern, start_index, ptn_id);
-		branch_list->parent = insert;
-		rbtree_insert(children(insert), ac_to_rb(branch_list), self->nil);
+		branch_first = acsm_construct_subtree(self, pattern, start_index, ptn_id);
+		acsm_add_child(self, insert, branch_first);
 		bitset_set(self->patterns, ptn_id);
 		self->pattern_num++;
 		self->is_prep = false;
@@ -269,7 +144,7 @@ static inline void acsm_children_inqueue_helper(acsm *self, queue *q, rbtree_nod
 static inline void acsm_children_inqueue(acsm *self, queue *q, p_ac_node p) {
 	if (!children(p)->root)
 		return;
-	acsm_children_inqueue(self, q, children(p)->root);
+	acsm_children_inqueue_helper(self, q, children(p)->root);
 }
 
 static inline void acsm_find_fail(acsm *self, p_ac_node node) {
