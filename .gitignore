@@ -5,3 +5,5 @@ pattern_match.vcxproj.filters
 pattern_match.vcxproj.user
 pattern_match/Debug
 .vs
+pattern_match/pattern.txt
+pattern_match/string.txt
