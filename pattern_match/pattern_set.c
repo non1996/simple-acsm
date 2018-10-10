@@ -61,6 +61,8 @@ static inline void pattern_set_pretreat(pattern_set *self) {
 	}
 	if (start != end)
 		vector_push_back(self->patterns, new(pattern_node, patterns + start));
+
+	log_debug("%s", ((pattern_node*)vector_back(self->patterns))->ptn.f.buffer);
 }
 
 constructor(pattern_set, const char *pattern_file) {
@@ -114,7 +116,14 @@ size_t pattern_set_size(pattern_set * self) {
 	return vector_size(self->patterns);
 }
 
+static int pattern_set_cmp(const void *p1, const void *p2) {
+	pattern_node *pn1 = *((pattern_node**)p1);
+	pattern_node *pn2 = *((pattern_node**)p2);
+	return pn2->count - pn1->count;
+}
+
 void pattern_set_sort(pattern_set * self) {
+	vector_sort(self->patterns, pattern_set_cmp);
 }
 
 void pattern_set_iterator_reset(pattern_set_iterator * self) {

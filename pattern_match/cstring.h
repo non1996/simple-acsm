@@ -54,6 +54,8 @@ static inline bool fixed_wstring_getend(fixed_wstring *self) {
 }
 
 static inline wchar fixed_wstring_get(fixed_wstring *self) {
+	if (fixed_wstring_getend(self))
+		return 0x0000u;
 	return util_wchar_get(self->f.buffer + self->traver_index);
 }
 

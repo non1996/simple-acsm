@@ -64,9 +64,6 @@ distructor(acsm) {
 }
 
 static inline p_ac_node acsm_find_child(acsm *self, p_ac_node p, wchar key) {
-	if (!children(p)->root)
-		return nullptr;
-
 	return rb_to_ac(rbtree_find(children(p), self->nil, key));
 }
 
@@ -130,6 +127,7 @@ bool acsm_add_pattern(acsm * self, fixed_wstring *pattern, uint32_t ptn_id) {
 	p_ac_node insert, branch_first;
 
 	if (bitset_is_set(self->patterns, ptn_id)) {
+		log_debug("Repeated pattern id [%d]", ptn_id);
 		return false;
 	}
 
@@ -148,6 +146,7 @@ bool acsm_add_pattern(acsm * self, fixed_wstring *pattern, uint32_t ptn_id) {
 		self->is_prep = false;
 		return true;
 	}
+	//log_debug("Repeated pattern [%s]", pattern->f.buffer);
 	return false;
 }
 

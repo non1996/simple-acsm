@@ -48,7 +48,7 @@ static inline bool pattern_match_output(pattern_match *self) {
 	if (!(self->ac_output = fopen(self->ac_output_name, "w"))) {
 		return false;
 	}
-
+	
 	pattern_set_sort(self->patterns);
 
 	for (iter = pattern_set_begin(self->patterns);

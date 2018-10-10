@@ -15,8 +15,6 @@ bool util_read_entire_file(const char *path, const char *mode, char **content, u
 	read = ftell(file);
 	rewind(file);
 
-	read >>= 2;
-
 	cont = mem_alloc_zero(char, read + 1);
 	read = fread(cont, sizeof(char), read, file);
 

@@ -23,7 +23,7 @@ distructor(file_stream) {
 }
 
 bool file_stream_init(file_stream * self) {
-	if (!util_read_entire_file(self->filename, "rb", &(self->content), &self->size))
+	if (!util_read_entire_file(self->filename, "rb", &(self->content), &(self->size)))
 		return false;
 
 	log_notice("Loaded entire string file.");
@@ -32,14 +32,14 @@ bool file_stream_init(file_stream * self) {
 }
 
 void file_stream_next(file_stream * self) {
-	self->curr_index += 2;
+	util_wchar_next(self->content, &(self->curr_index));
 	file_stream_skip_lf(self);
 }
 
 wchar file_stream_get(file_stream * self) {
 	if (file_stream_getend(self))
-		return '\0';
-	return *(wchar*)(self->content + self->curr_index);
+		return 0x0000u;
+	return util_wchar_get(self->content + self->curr_index);
 }
 
 bool file_stream_getend(file_stream * self) {

@@ -25,6 +25,7 @@ void vector_erase_keep_order(vector *self, void *data);
 void vector_erase_idx(vector *self, size_t index);
 void vector_erase_keep_order_idx(vector *self, size_t index);
 void vector_insert(vector *self, void *data, size_t index);
+void vector_sort(vector *self, void(*cmp)(const void *, const void *));
 
 
 #define vector_foreach(type, elem, l) \
