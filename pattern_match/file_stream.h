@@ -10,6 +10,7 @@ class(file_stream) {
 	mem_chunk *buffer;
 	uint64_t file_size;
 	uint64_t curr_file_offset;
+	//uint64_t next_file_offset;
 	size_t curr_buffer_index;
 	bool is_valid;
 };

@@ -7,33 +7,36 @@
 #define MODE_ONE_BYTE 1
 
 static inline bool file_stream_read_next(file_stream *self, uint8_t mode) {
+	static size_t count = 1;
 	if (!self->is_valid || (self->curr_file_offset >= self->file_size))
 		return false;
 
-	size_t read, to_read;
+	size_t rest, read, to_read;
 	char *buffer = self->buffer->block;
 
-	log_debug("Load next file chunk, curr_file_offset: %d, curr_chunk_offset: %d.", self->curr_file_offset, self->curr_buffer_index);
+	rest = (size_t)(self->file_size - self->curr_file_offset - self->buffer->used);
+	to_read = (rest >= self->buffer->cap) ? self->buffer->cap - mode : (size_t)(rest);
 
-	to_read = (self->file_size - self->curr_file_offset >= self->buffer->cap) ?
-		self->buffer->cap : (size_t)(self->file_size - self->curr_file_offset);
+	self->curr_file_offset += self->curr_buffer_index;
 
 	mem_chunk_clear(self->buffer);
 
 	if (mode == MODE_ONE_BYTE) {
-		to_read -= 1;
 		buffer += 1;
 		self->buffer->block[0] = self->buffer->block[self->curr_buffer_index];
 	}
-	self->curr_file_offset += to_read;
+
+	self->curr_buffer_index = 0;
 
 	if (!util_read_file(self->handle, buffer, to_read, &read))
 		return false;
 
 	assert(to_read == read);
 
-	self->curr_buffer_index = 0;
 	mem_chunk_use(self->buffer, read + mode);
+
+	log_debug("The %dth, Load next file chunk, curr_file_offset: %d, curr_chunk_offset: %d.", count++, self->curr_file_offset, self->curr_buffer_index);
+
 	return true;
 }
 

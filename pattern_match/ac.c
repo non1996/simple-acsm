@@ -11,7 +11,7 @@
 #define USE_STRING		1
 
 static inline p_ac_node acsm_find_child(acsm *self, p_ac_node p, wchar key);
-static inline ac_node *acsm_new_node(acsm * self, wchar key);
+static inline ac_node *acsm_alloc_node(acsm * self, wchar key);
 static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern, uint32_t ptn_id,
 	p_ac_node *parent, bool *repeat);
 static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child);
@@ -50,17 +50,15 @@ constructor(acsm) {
 	self->ac_alloc = allocator_new(ac_node)();
 	//self->patterns = new(bitset, 2260000);
 	self->nil = new(rbtree_node, RB_BLACK);
-	//self->root = new(ac_node, self->nil, 0x0000u);
-	self->root = acsm_new_node(self, 0x0000u);
+	self->root = acsm_alloc_node(self, 0x0000u);
 	self->root->faillink = self->root;
 	
-
 	constructor_end;
 }
 
 distructor(acsm) {
 	allocator_delete(ac_node)(self->ac_alloc);
-	//delete(bitset, self->patterns);
+	delete(rbtree_node, self->nil);
 }
 
 static inline p_ac_node acsm_find_child(acsm *self, p_ac_node p, wchar key) {
@@ -75,7 +73,6 @@ static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern,
 
 	for (fixed_wstring_begin(pattern); !fixed_wstring_getend(pattern); fixed_wstring_next(pattern)) {
 		child_iter = acsm_find_child(self, node_iter, fixed_wstring_get(pattern));
-
 		//	rest nodes should be inserted as *parent's child
 		if (!child_iter) {
 			*parent = node_iter;
@@ -91,7 +88,7 @@ static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern,
 	return false;
 }
 
-static inline ac_node *acsm_new_node(acsm * self, wchar key) {
+static inline ac_node *acsm_alloc_node(acsm * self, wchar key) {
 	ac_node *new_node;
 	new_node = allocator_allocate(ac_node)(self->ac_alloc, 1);
 	allocator_construct(ac_node)(new_node, self->nil, key);
@@ -104,15 +101,14 @@ static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child)
 }
 
 static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *pattern, uint32_t pattern_id) {
-	p_ac_node new_node, list = nullptr, tail;
-	size_t pattern_length = fixed_wstring_size(pattern);
+	p_ac_node new_node, list, tail;
 
-	new_node = acsm_new_node(self, fixed_wstring_get(pattern));
-	fixed_wstring_next(pattern);
+	new_node = acsm_alloc_node(self, fixed_wstring_get(pattern));
 	list = tail = new_node;
-
+	fixed_wstring_next(pattern);
+	
 	for (; !fixed_wstring_getend(pattern); fixed_wstring_next(pattern)) {
-		new_node = acsm_new_node(self, fixed_wstring_get(pattern));
+		new_node = acsm_alloc_node(self, fixed_wstring_get(pattern));
 		acsm_add_child(self, tail, new_node);
 		tail = new_node;
 	}
@@ -158,8 +154,6 @@ static inline void acsm_children_inqueue_helper(acsm *self, queue *q, rbtree_nod
 }
 
 static inline void acsm_children_inqueue(acsm *self, queue *q, p_ac_node p) {
-	if (!children(p)->root)
-		return;
 	acsm_children_inqueue_helper(self, q, children(p)->root);
 }
 
@@ -179,7 +173,6 @@ static inline void acsm_find_fail(acsm *self, p_ac_node node) {
 			node->faillink = self->root;
 			break;
 		}
-
 		fail_try = fail_try->faillink;
 	}
 }
@@ -263,14 +256,13 @@ bool acsm_search(acsm *self) {
 		child_iter = acsm_find_child(self, self->curr_node, acsm_curr_key(self));
 		
 		if (!child_iter) {
-			if (self->curr_node == self->root)
+			if (self->curr_node == self->root) {
 				acsm_next(self);
-			
+				continue;
+			}
 			self->curr_node = self->curr_node->faillink;
-
 			if (self->curr_node->match_id !=0)
 				self->cb(self->curr_node->match_id, self->cb_arg);
-
 			continue;
 		}
 			

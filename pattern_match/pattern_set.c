@@ -12,11 +12,6 @@ class(pattern_node) {
 	size_t count;
 };
 
-class(pattern_set_iterator) {
-	pattern_set *ps;
-	size_t idx;
-};
-
 static inline constructor(pattern_node, char *ptn) {
 	fixed_wstring_constructor(&(self->ptn), ptn);
 	constructor_end;
@@ -24,16 +19,6 @@ static inline constructor(pattern_node, char *ptn) {
 
 static inline distructor(pattern_node) {
 	
-}
-
-static inline constructor(pattern_set_iterator, pattern_set *ps) {
-	self->ps = ps;
-	self->idx = 0;
-	constructor_end;
-}
-
-static inline distructor(pattern_set_iterator) {
-
 }
 
 static inline void pattern_set_pretreat(pattern_set *self) {
@@ -67,14 +52,12 @@ static inline void pattern_set_pretreat(pattern_set *self) {
 
 constructor(pattern_set, const char *pattern_file) {
 	self->pattern_file = util_cstr_copy(pattern_file);
-	self->iter = new(pattern_set_iterator, self);
 	constructor_end;
 }
 distructor(pattern_set) {
 	mem_free(self->pattern_file);
 	delete(fixed_string, self->text_patterns);
 	delete(vector, self->patterns);
-	delete(pattern_set_iterator, self->iter);
 }
 
 bool pattern_set_init(pattern_set * self) {
@@ -100,16 +83,15 @@ fixed_wstring * pattern_set_get(pattern_set * self, size_t id) {
 	return &(((pattern_node*)vector_at(self->patterns, id_to_idx(id)))->ptn);
 }
 
-void pattern_set_inc(pattern_set * self, size_t id) {
+void pattern_set_count(pattern_set * self, size_t id) {
 	assert(id <= vector_size(self->patterns) && id > 0);
 
 	pattern_node *node = (pattern_node*)vector_at(self->patterns, id_to_idx(id));
 	node->count++;
 }
 
-pattern_set_iterator * pattern_set_begin(pattern_set * self) {
-	self->iter->idx = 0;
-	return self->iter;
+void pattern_set_begin(pattern_set * self) {
+	self->iter = 0;
 }
 
 size_t pattern_set_size(pattern_set * self) {
@@ -126,27 +108,23 @@ void pattern_set_sort(pattern_set * self) {
 	vector_sort(self->patterns, pattern_set_cmp);
 }
 
-void pattern_set_iterator_reset(pattern_set_iterator * self) {
-	self->idx = 0;
+fixed_wstring * pattern_set_curr_pattern(pattern_set * self) {
+	return &(((pattern_node*)vector_at(self->patterns, self->iter))->ptn);
 }
 
-fixed_wstring * pattern_set_iterator_get_pattern(pattern_set_iterator * self) {
-	return &(((pattern_node*)vector_at(self->ps->patterns, self->idx))->ptn);
+uint32_t pattern_set_curr_id(pattern_set *self) {
+	return idx_to_id(self->iter);
 }
 
-uint32_t pattern_set_iterator_get_id(pattern_set_iterator * self) {
-	return idx_to_id(self->idx);
+size_t pattern_set_curr_count(pattern_set *self) {
+	return ((pattern_node*)vector_at(self->patterns, self->iter))->count;
 }
 
-size_t pattern_set_iterator_get_count(pattern_set_iterator * self) {
-	return ((pattern_node*)vector_at(self->ps->patterns, self->idx))->count;
+void pattern_set_next(pattern_set *self) {
+	self->iter++;
 }
 
-void pattern_set_iterator_next(pattern_set_iterator * self) {
-	self->idx++;
-}
-
-bool pattern_set_iterator_getend(pattern_set_iterator * self) {
-	return self->idx >= vector_size(self->ps->patterns);
+bool pattern_set_getend(pattern_set *self) {
+	return self->iter >= vector_size(self->patterns);
 }
 
