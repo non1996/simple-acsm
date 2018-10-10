@@ -21,11 +21,36 @@ bool util_read_entire_file(const char *path, const char *mode, char **content, u
 	if (read == 0) {
 		log_warm("Read error, did not read anything.");
 		mem_free(cont);
+		fclose(file);
 		return false;
 	}
 
 	*content = cont;
 	*len = read;
+	fclose(file);
+	return true;
+}
+
+bool util_read_file(FILE *handle, char *buffer, size_t to_read, size_t *read) {
+	if (!handle)
+		return false;
+
+	*read = fread(buffer, sizeof(char), to_read, handle);
+
+	return true;
+}
+
+bool util_file_size(const char * path, uint64_t * size) {
+	FILE *file;
+
+	if (!(file = fopen(path, "rb"))) {
+		log_warm("Could not open file %s.", path);
+		return false;
+	}
+
+	fseek(file, 0, SEEK_END);
+	*size = ftell(file);
+	fclose(file);
 	return true;
 }
 

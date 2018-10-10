@@ -8,25 +8,30 @@
 #define MODE_AC		0
 #define MODE_TRIE	1
 
+static bool pattern_match_work_ac(pattern_match *self);
+static bool pattern_match_work_trie(pattern_match *self);
+
 constructor(pattern_match, int argc, char **argv) {
 	self->ac = new(acsm);
 
-	if (argc >= 2) {
-		self->fs = new(file_stream, argv[1], 0);
-	}
-	else {
-		self->fs = new(file_stream, "string.txt", 0);
-	}
+	if (argc >= 2)
+		self->text_name = util_cstr_copy(argv[1]);
+	else 
+		self->text_name = "string.txt";
+	
+	if (argc >= 3)
+		self->pattern_name = util_cstr_copy(argv[2]);
+	else 
+		self->pattern_name = "pattern.txt";
 
-	if (argc >= 3) {
-		self->patterns = new(pattern_set, argv[2]);
-	}
-	else {
-		self->patterns = new(pattern_set, "pattern.txt");
-	}
+	self->patterns = new(pattern_set, self->pattern_name);
 
-	self->ac_output_name = "ac_output.txt";
-	self->mode = MODE_AC;
+	if (argc >= 4) 
+		self->output_name = util_cstr_copy(argv[4]);
+	else 
+		self->output_name = "ac_output.txt";
+
+	self->work = pattern_match_work_ac;
 
 	constructor_end;
 }
@@ -35,6 +40,9 @@ distructor(pattern_match) {
 	delete(acsm, self->ac);
 	delete(file_stream, self->fs);
 	delete(pattern_set, self->patterns);
+	mem_free(self->text_name);
+	mem_free(self->pattern_name);
+	mem_free(self->output_name);
 }
 
 static void pattern_match_handle_cb(uint32_t pattern_id, void *arg) {
@@ -45,7 +53,7 @@ static void pattern_match_handle_cb(uint32_t pattern_id, void *arg) {
 static inline bool pattern_match_output(pattern_match *self) {
 	pattern_set_iterator *iter;
 	
-	if (!(self->ac_output = fopen(self->ac_output_name, "w"))) {
+	if (!(self->ac_output = fopen(self->output_name, "w"))) {
 		return false;
 	}
 	
@@ -58,10 +66,11 @@ static inline bool pattern_match_output(pattern_match *self) {
 		size_t count = pattern_set_iterator_get_count(iter);
 		fprintf(self->ac_output, "%s %d\n", fixed_string_cstr(s), count);
 	}
+	fclose(self->ac_output);
 	return true;
 }
 
-static inline bool pattern_match_work_ac(pattern_match *self) {
+static bool pattern_match_work_ac(pattern_match *self) {
 	pattern_set_iterator *iter;
 
 	log_notice("Load pattern file.");
@@ -82,8 +91,7 @@ static inline bool pattern_match_work_ac(pattern_match *self) {
 	acsm_prepare(self->ac);
 	
 	log_notice("Load string.");
-	if (!file_stream_init(self->fs))
-		return false;
+	self->fs = new(file_stream, self->text_name, 500 * 1024 * 1024);
 
 	acsm_search_init_file(self->ac, self->fs, pattern_match_handle_cb, self);
 	log_notice("Search.");
@@ -97,15 +105,11 @@ static inline bool pattern_match_work_ac(pattern_match *self) {
 	return true;
 }
 
-static inline bool pattern_match_work_trie(pattern_match *self) {
+static bool pattern_match_work_trie(pattern_match *self) {
 	assert(0);
 	return true;
 }
 
 bool pattern_match_work(pattern_match * self) {
-	if (self->mode == MODE_AC)
-		return pattern_match_work_ac(self);
-	else if (self->mode == MODE_TRIE)
-		return pattern_match_work_trie(self);
-	return false;
+	return self->work(self);
 }

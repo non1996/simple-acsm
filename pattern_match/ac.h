@@ -19,7 +19,7 @@ class(acsm){
 	p_ac_node root;
 
 	size_t pattern_num;
-	bitset *patterns;
+	//bitset *patterns;
 
 	union {
 		fixed_wstring *text;

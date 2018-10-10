@@ -19,6 +19,10 @@ static inline void mem_chunk_delete(mem_chunk *self) {
 	mem_free(self);
 }
 
+static inline void mem_chunk_clear(mem_chunk *self) {
+	self->used = 0;
+}
+
 static inline bool mem_chunk_enough(mem_chunk *self, size_t expect) {
 	return self->cap - self->used >= expect;
 }

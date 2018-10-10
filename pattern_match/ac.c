@@ -1,7 +1,7 @@
 #include "ac.h"
 #include "cstring.h"
 #include "queue.h"
-#include "bitset.h"
+//#include "bitset.h"
 #include "log.h"
 #include "file_stream.h"
 #include "rbtree.h"
@@ -38,7 +38,7 @@ ALLOCATOR_IMPL(ac_node);
 #define children(node) (&(node->children))
 
 constructor(ac_node, rbtree_node *nil, wchar key) {
-	rbtree_node_constructor(self, RB_RED);
+	rbtree_node_constructor(ac_to_rb(self), RB_RED);
 	rbtree_constructor(children(self), nil);
 	self->rb.left = nil;
 	self->rb.right = nil;
@@ -48,7 +48,7 @@ constructor(ac_node, rbtree_node *nil, wchar key) {
 
 constructor(acsm) {
 	self->ac_alloc = allocator_new(ac_node)();
-	self->patterns = new(bitset, 2260000);
+	//self->patterns = new(bitset, 2260000);
 	self->nil = new(rbtree_node, RB_BLACK);
 	//self->root = new(ac_node, self->nil, 0x0000u);
 	self->root = acsm_new_node(self, 0x0000u);
@@ -60,7 +60,7 @@ constructor(acsm) {
 
 distructor(acsm) {
 	allocator_delete(ac_node)(self->ac_alloc);
-	delete(bitset, self->patterns);
+	//delete(bitset, self->patterns);
 }
 
 static inline p_ac_node acsm_find_child(acsm *self, p_ac_node p, wchar key) {
@@ -106,7 +106,6 @@ static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child)
 static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *pattern, uint32_t pattern_id) {
 	p_ac_node new_node, list = nullptr, tail;
 	size_t pattern_length = fixed_wstring_size(pattern);
-	uint32_t index;
 
 	new_node = acsm_new_node(self, fixed_wstring_get(pattern));
 	fixed_wstring_next(pattern);
@@ -126,22 +125,22 @@ bool acsm_add_pattern(acsm * self, fixed_wstring *pattern, uint32_t ptn_id) {
 	bool repeat = false;
 	p_ac_node insert, branch_first;
 
-	if (bitset_is_set(self->patterns, ptn_id)) {
-		log_debug("Repeated pattern id [%d]", ptn_id);
-		return false;
-	}
+	//if (bitset_is_set(self->patterns, ptn_id)) {
+	//	log_debug("Repeated pattern id [%d]", ptn_id);
+	//	return false;
+	//}
 
 	if (acsm_should_insert(self, pattern, ptn_id, &insert, &repeat)) {
 		branch_first = acsm_construct_subtree(self, pattern, ptn_id);
 		acsm_add_child(self, insert, branch_first);
-		bitset_set(self->patterns, ptn_id);
+		//bitset_set(self->patterns, ptn_id);
 		self->pattern_num++;
 		self->is_prep = false;
 		return true;
 	}
 
 	if (!repeat) {
-		bitset_set(self->patterns, ptn_id);
+		//bitset_set(self->patterns, ptn_id);
 		self->pattern_num++;
 		self->is_prep = false;
 		return true;

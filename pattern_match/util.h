@@ -4,6 +4,10 @@
 
 bool util_read_entire_file(const char *path, const char *mode, char **content, uint32_t *len);
 
+bool util_read_file(FILE *handle, char *buffer, size_t to_read, size_t *readed);
+
+bool util_file_size(const char *path, uint64_t *size);
+
 char *util_cstr_copy(const char *src);
 
 #define GB_MASK ((wchar)0xA0)
