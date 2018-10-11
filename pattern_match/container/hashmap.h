@@ -3,41 +3,49 @@
 
 #include "afx.h"
 
-class_decl(hashmap_pair);
-class_decl(hashmap_iterator);
-class_decl(bitset);
+class_decl(pair);
 
 typedef size_t(*hash_fn)(void *key);
 typedef bool(*cmp_fn)(void *key1, void *key2);
-typedef void*(*cpy_fn)(void *key);
-typedef void(*clr_fn)(void *key);
 
 class(hashmap) {
-	hashmap_pair **blanket;
-	bitset *valid;
+	pair **blanket;
 	size_t size;
+	size_t capacity;
 
 	hash_fn hash;
 	cmp_fn cmp;
-	cpy_fn cpy;
-	clr_fn clr;
 };
 
-constructor(hashmap, hash_fn hash, cmp_fn cmp, cpy_fn cpy, clr_fn clr);
+constructor(hashmap, size_t cap, hash_fn hash, cmp_fn cmp);
 distructor(hashmap);
 
-bool hashmap_empty(hashmap *self);
-void hashmap_clear(hashmap *self);
-bool hashmap_remove(hashmap *self, void *key);
-void * hashmap_insert(hashmap *self, void *key, void *value);
-hashmap_pair * hashmap_find(hashmap *self, void *key);
+static inline bool hashmap_empty(hashmap *self) {
+		return self->size == 0;
+}
 
-class(hashmap_pair) {
-	void *key;
-	void *value;
-	hashmap_pair *next;
+void hashmap_clear(hashmap *self);
+//bool hashmap_remove(hashmap *self, void *key);
+void * hashmap_insert(hashmap *self, pair *p);
+pair * hashmap_find(hashmap *self, void *key);
+
+class(pair) {
+	pair *next;
 };
 
-distructor(hashmap_pair);
+#define PAIR_DECL(key_type, value_type) \
+class(pair_ ## key_type ## _ ## value_type) { \
+	pair p; \
+	key_type key; \
+	value_type value; \
+}; \
+static inline key_type pair_key(pair_ ## key_type ## _ ## value_type *self) { \
+	return self->key; \
+} \
+static inline value_type pair_value(pair_ ## key_type ## _ ## value_type *self) { \
+	return self->value; \
+} 
+
+
 
 #endif // !HASHMAP_H

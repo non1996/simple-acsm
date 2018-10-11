@@ -7,3 +7,4 @@ pattern_match/Debug
 .vs
 pattern_match/pattern.txt
 pattern_match/string.txt
+*.txt

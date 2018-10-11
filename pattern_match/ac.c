@@ -19,7 +19,6 @@ static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *patter
 static inline void acsm_children_inqueue_helper(acsm *self, queue *q, rbtree_node *node);
 static inline void acsm_find_fail(acsm *self, p_ac_node node);
 static inline void acsm_children_inqueue(acsm *self, queue *q, p_ac_node p);
-static inline void acsm_search_init(acsm * self, output_handle cb, void * cb_arg);
 static inline bool acsm_search_getend(acsm *self);
 static inline wchar acsm_curr_key(acsm *self);
 static inline void acsm_next(acsm *self);
@@ -193,7 +192,7 @@ void acsm_prepare(acsm * self) {
 	delete(queue, wsqueue);
 }
 
-static inline void acsm_search_init(acsm * self, output_handle cb, void * cb_arg) {
+void acsm_search_init(acsm * self, output_handle cb, void * cb_arg) {
 	self->curr_node = self->root;
 	self->cb = cb;
 	self->cb_arg = cb_arg;
@@ -244,8 +243,16 @@ static inline void acsm_next(acsm *self) {
 		file_stream_next(self->fs);
 }
 
-bool acsm_search(acsm *self) {
-	p_ac_node child_iter;
+static inline void acsm_output(acsm *self, p_ac_node start) {
+	do {
+		if (start->match_id != 0)
+			self->cb(start->match_id, self->cb_arg);
+		start = start->faillink;
+	} while (start != self->root);
+}
+
+bool acsm_search_ac(acsm *self) {
+	p_ac_node child;
 
 	if (!self->is_prep || !self->is_init || self->is_end) {
 		//	log_error
@@ -253,23 +260,20 @@ bool acsm_search(acsm *self) {
 	}
 
 	while (!acsm_search_getend(self)) {
-		child_iter = acsm_find_child(self, self->curr_node, acsm_curr_key(self));
+		child = acsm_find_child(self, self->curr_node, acsm_curr_key(self));
 		
-		if (!child_iter) {
+		if (!child) {
 			if (self->curr_node == self->root) {
 				acsm_next(self);
 				continue;
 			}
 			self->curr_node = self->curr_node->faillink;
-			if (self->curr_node->match_id !=0)
-				self->cb(self->curr_node->match_id, self->cb_arg);
-			continue;
 		}
-			
-		self->curr_node = child_iter;
+		else
+			self->curr_node = child;
 
 		if (self->curr_node->match_id != 0)
-			self->cb(self->curr_node->match_id, self->cb_arg);
+			acsm_output(self, self->curr_node);
 
 		acsm_next(self);
 	}
@@ -279,74 +283,22 @@ bool acsm_search(acsm *self) {
 	return true;
 }
 
-//bool acsm_del_pattern(acsm * self, fixed_string *pattern, uint32_t ptn_id) {
-//	uint32_t i;
-//	p_ac_node node_iter, branch, branch_prev, child, child_prev;
-//	bool del_branch;
-//
-//	if (!bitset_is_set(self->patterns, ptn_id))
-//		return false;
-//
-//	del_branch = false;
-//	branch = node_iter = self->root;
-//	branch_prev = nullptr;
-//
-//	for (i = 0; i < fixed_string_size(pattern); ++i) {
-//		child = node_iter->children;
-//		child_prev = nullptr;
-//
-//		while (child != nullptr && child->ch != fixed_string_at(pattern, i)) {
-//			child_prev = child;
-//			child = child->sibling;
-//		}
-//
-//		if (child == nullptr) {
-//			// log_error
-//			return false;
-//		}
-//
-//		//	找到需要开始删除的分支节点。该节点是最新的，且满足下列两个条件之一的节点：
-//		//		1	有一个模式在某个中间节点被满足（match_id != 0）。这种情况下，
-//		//			分支节点位于它的下方，所以这个中间节点的子节点应被移除。
-//		//		2	有一个节点有其他兄弟节点。在这种情况下，节点自身是分支节点，它和它的
-//		//			子节点需要被移除
-//		if (i < fixed_string_size(pattern) - 1 && child->match_id != 0) {
-//			del_branch = false;
-//			branch = child;
-//		}
-//		else if (child_prev != nullptr || child->sibling != nullptr) {	//has sibling
-//			del_branch = true;
-//			branch = child;
-//			branch_prev = (child_prev == nullptr ? node_iter : child_prev);
-//		}
-//		node_iter = child;
-//	}
-//	
-//	//	如果该字符串最后一个字符对应的节点有子节点，树不被改变
-//	if (node_iter->children != nullptr)
-//		node_iter->match_id = 0;
-//	else { //tnode->children == nullptr
-//		if (del_branch) {
-//			(branch_prev->children == branch) ? 
-//			(branch_prev->children = branch->sibling) : 
-//			(branch_prev->sibling = branch->sibling);
-//		}
-//		else {
-//			child = branch->children;
-//			branch->children = nullptr;
-//			branch = child;
-//		}
-//
-//		while (branch != nullptr) {
-//			child = branch->children;
-//			mem_free(branch);
-//			branch = child;
-//		}
-//	}
-//
-//	self->pattern_num--;
-//	bitset_clear(self->patterns, ptn_id);
-//	self->is_prep = false;
-//
-//	return true;
-//}
+bool acsm_search_trie(acsm * self, fixed_wstring * token) {
+	p_ac_node curr, child;
+	if (!self->is_prep || !self->is_init || self->is_end) {
+		//	log_error
+		return false;
+	}
+
+	curr = self->root;
+	for (fixed_wstring_begin(token); !fixed_wstring_getend(token); fixed_wstring_next(token)) {
+		child = acsm_find_child(self, curr, fixed_wstring_get(token));
+		if (!child)
+			return false;
+		curr = child;
+	}
+
+	self->cb(curr->match_id, self->cb_arg);
+
+	return true;
+}

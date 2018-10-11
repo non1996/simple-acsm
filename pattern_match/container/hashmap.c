@@ -3,23 +3,14 @@
 
 #define HASHMAP_BLANKET_MAX 1024
 
-static size_t hashmap_default_hash(void *key);
-static bool hashmap_default_cmp(void *key1, void *key2);
-static void *hashmap_default_cpy(void *key);
-static void hashmap_default_clr(void *key);
-
-static constructor(hashmap_pair, hashmap *map, void *key, void *value);
-
 constructor(hashmap, hash_fn hash, cmp_fn cmp, cpy_fn cpy, clr_fn clr) {
 	int index;
 	
-	self->blanket = (hashmap_pair**)mem_alloc_zero(hashmap_pair*, HASHMAP_BLANKET_MAX);
+	self->blanket = (pair**)mem_alloc_zero(pair*, HASHMAP_BLANKET_MAX);
 	self->size = 0;
 	
 	for (index = 0; index < HASHMAP_BLANKET_MAX; ++index)
-		self->blanket[index] = new(hashmap_pair, nullptr, nullptr, nullptr);
-
-	self->valid = new(bitset, HASHMAP_BLANKET_MAX);
+		self->blanket[index] = new(pair, nullptr, nullptr, nullptr);
 
 	hash ? self->hash = hashmap_default_hash : self->hash;
 	cmp ? self->cmp = hashmap_default_cmp : self->cmp;
@@ -30,12 +21,7 @@ constructor(hashmap, hash_fn hash, cmp_fn cmp, cpy_fn cpy, clr_fn clr) {
 
 distructor(hashmap) {
 	hashmap_clear(self);
-	delete(bitset, self->valid);
 	mem_free(self->blanket);
-}
-
-bool hashmap_empty(hashmap *self) {
-	return self->size == 0;
 }
 
 void hashmap_clear(hashmap *self) {
@@ -50,53 +36,49 @@ void hashmap_clear(hashmap *self) {
 			delete(hashmap_pair, temp);
 		}		
 	}
-	bitset_clear_all(self->valid);
 	self->size = 0;
 }
 
-bool hashmap_remove(hashmap *self, void *key) {
-	size_t index;
-	hashmap_pair *curr, *prev;
+//bool hashmap_remove(hashmap *self, void *key) {
+//	size_t index;
+//	hashmap_pair *curr, *prev;
+//
+//	index = self->hash(key);
+//	prev = self->blanket[index];
+//	curr = self->blanket[index]->next;
+//
+//	while (curr) {
+//		if (self->cmp(curr->key, key)) {
+//			prev->next = curr->next;
+//			
+//			self->clr(curr->key);
+//			delete(hashmap_pair, curr);
+//			
+//			if (self->blanket[index]->next == nullptr)
+//				bitset_clear(self->valid, index);
+//			self->size--;
+//			return true;
+//		}
+//		curr = curr->next;
+//	}
+//	return false;
+//}
 
-	index = self->hash(key);
-	prev = self->blanket[index];
-	curr = self->blanket[index]->next;
-
-	while (curr) {
-		if (self->cmp(curr->key, key)) {
-			prev->next = curr->next;
-			
-			self->clr(curr->key);
-			delete(hashmap_pair, curr);
-			
-			if (self->blanket[index]->next == nullptr)
-				bitset_clear(self->valid, index);
-			self->size--;
-			return true;
-		}
-		curr = curr->next;
-	}
-	return false;
-}
-
-void * hashmap_insert_pair(hashmap *self, hashmap_pair *pair) {
+void * hashmap_insert_pair(hashmap *self, pair *p) {
 	size_t index;
 	hashmap_pair *curr, *prev;
 	void *old_value;
 
-	index = self->hash(pair->key);
+	index = self->hash(p->key);
 	prev = self->blanket[index];
 	curr = self->blanket[index]->next;
 
 	self->size++;
 
-	if (!curr)
-		bitset_set(self->valid, index);
-
 	while (curr) {
-		if (self->cmp(curr->key, pair->key)) {
-			prev->next = pair;
-			pair->next = curr->next;
+		if (self->cmp(curr->key, p->key)) {
+			prev->next = p;
+			p->next = curr->next;
 			old_value = curr->value;
 			
 			self->clr(curr->key);
@@ -107,12 +89,8 @@ void * hashmap_insert_pair(hashmap *self, hashmap_pair *pair) {
 		curr = curr->next;
 	}
 
-	prev->next = pair;
+	prev->next = p;
 	return nullptr;
-}
-
-void * hashmap_insert(hashmap *self, void *key, void *value) {
-	return hashmap_insert_pair(self, new(hashmap_pair, self, key, value));
 }
 
 hashmap_pair * hashmap_find(hashmap *self, void *key) {
@@ -137,10 +115,6 @@ constructor(hashmap_pair,
 }
 
 distructor(hashmap_pair) {
-
-}
-
-distructor(hashmap_iterator) {
 
 }
 
