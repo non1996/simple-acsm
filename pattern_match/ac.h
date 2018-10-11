@@ -10,6 +10,7 @@ class_decl(ac_node);
 class_decl(acsm);
 class_decl(bitset);
 class_decl(rbtree_node);
+class_decl(hashmap);
 ALLOCATOR_DECL(ac_node);
 typedef ac_node *p_ac_node;
 
@@ -19,7 +20,6 @@ class(acsm){
 	p_ac_node root;
 
 	size_t pattern_num;
-	//bitset *patterns;
 
 	union {
 		fixed_wstring *text;
@@ -31,7 +31,7 @@ class(acsm){
 	output_handle cb;
 	void *cb_arg;
 
-	rbtree_node *nil;
+	hashmap *nodes;
 
 	allocator(ac_node) *ac_alloc;
 

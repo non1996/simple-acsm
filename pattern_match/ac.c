@@ -1,11 +1,59 @@
 #include "ac.h"
 #include "cstring.h"
 #include "queue.h"
-//#include "bitset.h"
 #include "log.h"
 #include "file_stream.h"
-#include "rbtree.h"
 #include "allocator.h"
+
+static inline uint64_t make_key(p_ac_node *parent, wchar key) {
+	uint64_t p = (uint64_t)parent << 16;
+	return p | (uint64_t)key;
+}
+
+class(hashmap) {
+	p_ac_node *blanket;
+	size_t capacity;
+	size_t size;
+};
+
+constructor(hashmap, size_t cap) {
+	self->blanket = mem_alloc(p_ac_node, cap);
+	self->capacity = cap;
+	constructor_end;
+}
+
+distructor(hashmap) {
+	mem_free(self->blanket);
+}
+
+static inline size_t hashmap_hash(hashmap *self, uint64_t key) {
+	uint64_t res = key;
+	res = ~res + (res << 15);	// res = (res << 15) - res - 1;
+	res = res ^ (res >> 12);
+	res = res + (res << 2);
+	res = res ^ (res >> 4);
+	res = res * 2057;			// res = (res + (res << 3)) + (res << 11);
+	res = res ^ (res >> 16);
+	return (size_t)(res % self->capacity);
+}
+
+static inline void hashmap_insert(hashmap *self, uint64_t key, p_ac_node node) {
+	size_t index = hashmap_hash(self, key);
+	if (self->blanket[index])
+		node->h_next = self->blanket[index]->h_next;
+	self->blanket[index] = node;
+}
+
+static inline p_ac_node hashmap_find(hashmap *self, uint64_t key) {
+	size_t index = hashmap_hash(self, key);
+	p_ac_node iter = self->blanket[index];
+	while (iter) {
+		if (make_key(iter->parent, iter->key) == key)
+			return iter;
+		iter = iter->h_next;
+	}
+	return nullptr;
+}
 
 #define USE_FILE_STREAM 0
 #define USE_STRING		1
@@ -24,10 +72,12 @@ static inline wchar acsm_curr_key(acsm *self);
 static inline void acsm_next(acsm *self);
 
 class(ac_node) {
-	rbtree_node rb;
-	p_ac_node faillink, parent;
-	rbtree children;
+	p_ac_node faillink, parent, children, h_next, child_next;
 	uint32_t match_id;
+	union {
+		wchar key;
+		uint32_t padding;
+	};
 };
 
 ALLOCATOR_IMPL(ac_node);
@@ -36,19 +86,13 @@ ALLOCATOR_IMPL(ac_node);
 #define rb_to_ac(node) ((ac_node*)node)
 #define children(node) (&(node->children))
 
-constructor(ac_node, rbtree_node *nil, wchar key) {
-	rbtree_node_constructor(ac_to_rb(self), RB_RED);
-	rbtree_constructor(children(self), nil);
-	self->rb.left = nil;
-	self->rb.right = nil;
-	self->rb.key = key;
+constructor(ac_node, wchar key) {
+	self->key = key;
 	constructor_end;
 }
 
 constructor(acsm) {
 	self->ac_alloc = allocator_new(ac_node)();
-	//self->patterns = new(bitset, 2260000);
-	self->nil = new(rbtree_node, RB_BLACK);
 	self->root = acsm_alloc_node(self, 0x0000u);
 	self->root->faillink = self->root;
 	
@@ -57,11 +101,10 @@ constructor(acsm) {
 
 distructor(acsm) {
 	allocator_delete(ac_node)(self->ac_alloc);
-	delete(rbtree_node, self->nil);
 }
 
 static inline p_ac_node acsm_find_child(acsm *self, p_ac_node p, wchar key) {
-	return rb_to_ac(rbtree_find(children(p), self->nil, key));
+	return hashmap_find(self->nodes, make_key(p, key));
 }
 
 static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern, 
@@ -90,13 +133,15 @@ static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern,
 static inline ac_node *acsm_alloc_node(acsm * self, wchar key) {
 	ac_node *new_node;
 	new_node = allocator_allocate(ac_node)(self->ac_alloc, 1);
-	allocator_construct(ac_node)(new_node, self->nil, key);
+	allocator_construct(ac_node)(new_node, key);
 	return new_node;
 }
 
 static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child) {
-	rbtree_insert(children(parent), ac_to_rb(child), self->nil);
 	child->parent = parent;
+	child->child_next = parent->children;
+	parent->children = child->child_next;
+	hashmap_insert(self->nodes, make_key(parent, child->key), child);
 }
 
 static inline ac_node *acsm_construct_subtree(acsm * self, fixed_wstring *pattern, uint32_t pattern_id) {
@@ -120,27 +165,19 @@ bool acsm_add_pattern(acsm * self, fixed_wstring *pattern, uint32_t ptn_id) {
 	bool repeat = false;
 	p_ac_node insert, branch_first;
 
-	//if (bitset_is_set(self->patterns, ptn_id)) {
-	//	log_debug("Repeated pattern id [%d]", ptn_id);
-	//	return false;
-	//}
-
 	if (acsm_should_insert(self, pattern, ptn_id, &insert, &repeat)) {
 		branch_first = acsm_construct_subtree(self, pattern, ptn_id);
 		acsm_add_child(self, insert, branch_first);
-		//bitset_set(self->patterns, ptn_id);
 		self->pattern_num++;
 		self->is_prep = false;
 		return true;
 	}
 
 	if (!repeat) {
-		//bitset_set(self->patterns, ptn_id);
 		self->pattern_num++;
 		self->is_prep = false;
 		return true;
 	}
-	//log_debug("Repeated pattern [%s]", pattern->f.buffer);
 	return false;
 }
 
