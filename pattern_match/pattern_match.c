@@ -38,7 +38,7 @@ constructor(pattern_match, int argc, char **argv) {
 		self->output_name = "ac_output.txt";
 
 	self->work = pattern_match_work_ac;
-end:
+
 	constructor_end;
 }
 
