@@ -14,7 +14,6 @@ class(pattern_match) {
 	acsm *ac;
 	file_stream *fs;
 	pattern_set *patterns;
-	pattern_set *string_tokens;
 	FILE *ac_output;
 	bool(*work)(pattern_match *);
 };

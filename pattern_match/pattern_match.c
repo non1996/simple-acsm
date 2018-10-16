@@ -46,7 +46,6 @@ distructor(pattern_match) {
 	delete(acsm, self->ac);
 	delete(file_stream, self->fs);
 	delete(pattern_set, self->patterns);
-	delete(pattern_set, self->string_tokens);
 	mem_free(self->text_name);
 	mem_free(self->pattern_name);
 	mem_free(self->output_name);
@@ -92,7 +91,7 @@ static bool pattern_match_work_ac(pattern_match *self) {
 	}
 
 	log_notice("Prepare acsm.");
-	acsm_prepare(self->ac);
+	acsm_compile(self->ac);
 	
 	log_notice("Load string.");
 	self->fs = new(file_stream, self->text_name, 500 * 1024 * 1024);
@@ -125,18 +124,15 @@ static bool pattern_match_work_trie(pattern_match *self) {
 			pattern_set_curr_id(self->patterns));
 	}
 
-	self->string_tokens = new(pattern_set, "string_token.txt");
-
-	if (!pattern_set_init(self->string_tokens))
-		return false;
+	self->fs = new(file_stream, "string_token.txt", 500 * 1024 * 1024);
 
 	log_notice("Search.");
 	acsm_search_init(self->ac, pattern_match_handle_cb, self);
-	for (pattern_set_begin(self->string_tokens);
-		!pattern_set_getend(self->string_tokens);
-		pattern_set_next(self->string_tokens)) {
 
-		acsm_search_trie(self->ac, pattern_set_curr_pattern(self->string_tokens));
+	fixed_wstring *line = new(fixed_wstring, "");
+
+	while (file_stream_getline(self->fs, line)) {
+		acsm_search_trie(self->ac, line);
 	}
 	
 	log_notice("Ouput result.");

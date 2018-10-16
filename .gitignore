@@ -8,3 +8,4 @@ pattern_match/Debug
 pattern_match/pattern.txt
 pattern_match/string.txt
 *.txt
+pattern_match/snort_acsm/
