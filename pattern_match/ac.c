@@ -57,10 +57,25 @@ static inline size_t hashmap_full(hashmap *self) {
 	return count;
 }
 
+static inline size_t hashmap_deepest(hashmap *self) {
+	size_t deepest = 0, depth, index;
+	p_ac_node node;
+	for (index = 0; index < self->capacity; ++index) {
+		depth = 0;
+		node = self->blanket[index];
+		while (node) {
+			depth++;
+			node = node->h_next;
+		}
+		if (depth > deepest)
+			deepest = depth;
+	}
+	return deepest;
+}
+
 static inline void hashmap_insert(hashmap *self, p_ac_node node) {
 	size_t index = hashmap_hash(self, make_key(node->parent, node->key));
-	if (self->blanket[index])
-		node->h_next = self->blanket[index];
+	node->h_next = self->blanket[index];
 	self->blanket[index] = node;
 	self->size++;
 }
@@ -126,6 +141,11 @@ static inline void acsm_next(acsm *self);
 ALLOCATOR_IMPL(ac_node);
 
 constructor(ac_node, wchar key) {
+	self->h_next = nullptr;
+	self->children = nullptr;
+	self->child_next = nullptr;
+	self->parent = nullptr;
+	self->fail = nullptr;
 	self->key = key;
 	constructor_end;
 }
@@ -251,8 +271,9 @@ void acsm_compile(acsm * self) {
 	
 	log_notice("Prepare acsm by finding faillink.");
 	log_debug("Hashmap blanket resize to %ul", self->nodes->size);
+	log_debug("Before hashmap rehash, used blanket %ul/%ul, deepest blanket %ul.", hashmap_full(self->nodes), self->nodes->capacity, hashmap_deepest(self->nodes));
 	hashmap_resize(self->nodes, self->nodes->size);
-	log_debug("Hashmap used blanket %ul/%ul.", hashmap_full(self->nodes), self->nodes->capacity);
+	log_debug("Hashmap used blanket %ul/%ul, deepest blanket %ul.", hashmap_full(self->nodes), self->nodes->capacity, hashmap_deepest(self->nodes));
 
 	log_debug("Finding faillink.");
 	acsm_children_inqueue(self, wsqueue, self->root);

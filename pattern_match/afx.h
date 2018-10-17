@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <stddef.h>
+#include <stdarg.h>
 
 #include "mem_alloc.h"
 

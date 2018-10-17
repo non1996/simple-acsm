@@ -47,7 +47,7 @@ static inline bool file_stream_load_next(file_stream *self, size_t retain) {
 	return true;
 }
 
-static inline file_stream_skip_lf(file_stream *self) {
+static inline void file_stream_skip_lf(file_stream *self) {
 	while (!file_stream_getend(self) && self->buffer->block[self->buffer_index] == LF) {
 		self->buffer_index++;
 		if (self->buffer_index >= self->buffer->used)
