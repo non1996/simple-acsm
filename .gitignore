@@ -7,6 +7,6 @@ pattern_match/Debug
 .vs
 pattern_match/pattern.txt
 pattern_match/string.txt
-*.txt
+pattern_match/ac_output.txt
 pattern_match/snort_acsm/
 *.exe
