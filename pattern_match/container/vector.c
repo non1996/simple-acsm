@@ -97,7 +97,7 @@ void vector_insert(vector *self, void *data, size_t index) {
 	self->buffer[index] = data;
 }
 
-void vector_sort(vector * self, void(*cmp)(const void *, const void *)) {
+void vector_sort(vector * self, int(*cmp)(const void *, const void *)) {
 	qsort(self->buffer, self->size, sizeof(void*), cmp);
 }
 
