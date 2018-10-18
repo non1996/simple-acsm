@@ -23,19 +23,19 @@ constructor(pattern_match, int argc, char **argv) {
 	if (argc >= 3)
 		self->text_name = util_cstr_copy(argv[2]);
 	else 
-		self->text_name = "string.txt";
+		self->text_name = util_cstr_copy("string.txt");
 	
 	if (argc >= 4)
 		self->pattern_name = util_cstr_copy(argv[3]);
 	else 
-		self->pattern_name = "pattern.txt";
+		self->pattern_name = util_cstr_copy("pattern.txt");
 
 	self->patterns = new(pattern_set, self->pattern_name);
 
 	if (argc >= 5) 
 		self->output_name = util_cstr_copy(argv[4]);
 	else 
-		self->output_name = "ac_output.txt";
+		self->output_name = util_cstr_copy("ac_output.txt");
 
 	self->work = pattern_match_work_ac;
 
