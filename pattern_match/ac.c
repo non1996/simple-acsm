@@ -127,10 +127,10 @@ static inline void hashmap_resize(hashmap *self, size_t new_cap) {
 
 static inline p_ac_node acsm_find_child(acsm *self, p_ac_node p, wchar key);
 static inline ac_node *acsm_alloc_node(acsm * self, wchar key);
-static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern, uint32_t ptn_id,
+static inline bool acsm_should_insert(acsm *self, wstring_stream *pattern, uint32_t ptn_id,
 	p_ac_node *parent, bool *repeat);
 static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child);
-static inline ac_node *acsm_construct_branch(acsm * self, fixed_wstring *pattern, uint32_t pattern_id);
+static inline ac_node *acsm_construct_branch(acsm * self, wstring_stream *pattern, uint32_t pattern_id);
 static inline void acsm_find_fail(acsm *self, p_ac_node node);
 static inline void acsm_children_inqueue(acsm *self, queue *q, p_ac_node p);
 
@@ -170,14 +170,14 @@ static inline p_ac_node acsm_find_child(acsm *self, p_ac_node parent, wchar key)
 	return hashmap_find(self->nodes, make_key(parent, key));
 }
 
-static inline bool acsm_should_insert(acsm *self, fixed_wstring *pattern, 
+static inline bool acsm_should_insert(acsm *self, wstring_stream *pattern, 
 	uint32_t ptn_id, p_ac_node *parent, bool *repeat) {
 	p_ac_node node_iter = self->root, child_iter;
 
-	assert(fixed_wstring_size(pattern));
+	assert(wstring_stream_size(pattern));
 
-	for (fixed_wstring_begin(pattern); !fixed_wstring_getend(pattern); fixed_wstring_next(pattern)) {
-		child_iter = acsm_find_child(self, node_iter, fixed_wstring_get(pattern));
+	for (wstring_stream_begin(pattern); !wstring_stream_getend(pattern); wstring_stream_next(pattern)) {
+		child_iter = acsm_find_child(self, node_iter, wstring_stream_get(pattern));
 		if (!child_iter) {
 			*parent = node_iter;
 			return true;
@@ -206,14 +206,14 @@ static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child)
 	hashmap_insert(self->nodes, child);
 }
 
-static inline ac_node *acsm_construct_branch(acsm * self, fixed_wstring *pattern, uint32_t pattern_id) {
+static inline ac_node *acsm_construct_branch(acsm * self, wstring_stream *pattern, uint32_t pattern_id) {
 	p_ac_node new_node, list, tail;
 
-	list = tail = acsm_alloc_node(self, fixed_wstring_get(pattern));
-	fixed_wstring_next(pattern);
+	list = tail = acsm_alloc_node(self, wstring_stream_get(pattern));
+	wstring_stream_next(pattern);
 	
-	for (; !fixed_wstring_getend(pattern); fixed_wstring_next(pattern)) {
-		new_node = acsm_alloc_node(self, fixed_wstring_get(pattern));
+	for (; !wstring_stream_getend(pattern); wstring_stream_next(pattern)) {
+		new_node = acsm_alloc_node(self, wstring_stream_get(pattern));
 		acsm_add_child(self, tail, new_node);
 		tail = new_node;
 	}
@@ -222,7 +222,7 @@ static inline ac_node *acsm_construct_branch(acsm * self, fixed_wstring *pattern
 	return list;
 }
 
-bool acsm_add_pattern(acsm * self, fixed_wstring *pattern, uint32_t ptn_id) {
+bool acsm_add_pattern(acsm * self, wstring_stream *pattern, uint32_t ptn_id) {
 	bool repeat = false;
 	p_ac_node insert;
 
@@ -269,11 +269,11 @@ void acsm_compile(acsm * self) {
 	p_ac_node curr;
 	queue *wsqueue = new(queue);
 	
-	log_notice("Prepare acsm by finding faillink.");
-	log_debug("Hashmap blanket resize to %ul", self->nodes->size);
-	log_debug("Before hashmap rehash, used blanket %ul/%ul, deepest blanket %ul.", hashmap_full(self->nodes), self->nodes->capacity, hashmap_deepest(self->nodes));
+	log_notice("Compile acsm by finding faillink.");
+	log_debug("Hashmap blanket resize to %lu", self->nodes->size);
+	log_debug("Before hashmap rehash, used blanket %lu/%lu, deepest blanket %lu.", hashmap_full(self->nodes), self->nodes->capacity, hashmap_deepest(self->nodes));
 	hashmap_resize(self->nodes, self->nodes->size);
-	log_debug("Hashmap used blanket %ul/%ul, deepest blanket %ul.", hashmap_full(self->nodes), self->nodes->capacity, hashmap_deepest(self->nodes));
+	log_debug("Hashmap used blanket %lu/%lu, deepest blanket %lu.", hashmap_full(self->nodes), self->nodes->capacity, hashmap_deepest(self->nodes));
 
 	log_debug("Finding faillink.");
 	acsm_children_inqueue(self, wsqueue, self->root);
@@ -284,7 +284,7 @@ void acsm_compile(acsm * self) {
 	}
 
 	delete(queue, wsqueue);
-	log_debug("Acsm prepared.");
+	log_debug("Acsm compiled.");
 }
 
 void acsm_search_init(acsm * self, match_handle cb, void * cb_arg) {
@@ -300,7 +300,7 @@ bool acsm_search_init_file(acsm * self, file_stream * fs, match_handle cb, void 
 	return true;
 }
 
-bool acsm_search_init_string(acsm * self, fixed_wstring * text, match_handle cb, void *cb_arg) {
+bool acsm_search_init_string(acsm * self, wstring_stream * text, match_handle cb, void *cb_arg) {
 	self->text = text;
 	self->input_type = USE_STRING;
 	acsm_search_init(self, cb, cb_arg);
@@ -309,21 +309,21 @@ bool acsm_search_init_string(acsm * self, fixed_wstring * text, match_handle cb,
 
 static inline bool acsm_search_getend(acsm *self) {
 	if (self->input_type == USE_STRING)
-		return fixed_wstring_getend(self->text);
+		return wstring_stream_getend(self->text);
 	else
 		return file_stream_getend(self->fs);
 }
 
 static inline wchar acsm_curr_key(acsm *self) {	// < :
 	if (self->input_type == USE_STRING)
-		return fixed_wstring_get(self->text);
+		return wstring_stream_get(self->text);
 	else
 		return file_stream_get(self->fs);
 }
 
 static inline void acsm_next(acsm *self) {
 	if (self->input_type == USE_STRING)
-		fixed_wstring_next(self->text);
+		wstring_stream_next(self->text);
 	else if (self->input_type == USE_FILE_STREAM)
 		file_stream_next(self->fs);
 }
@@ -365,12 +365,12 @@ bool acsm_search_ac(acsm *self) {
 	return true;
 }
 
-bool acsm_search_trie(acsm * self, fixed_wstring * token) {
+bool acsm_search_trie(acsm * self, wstring_stream * token) {
 	p_ac_node curr, child;
 
 	curr = self->root;
-	for (fixed_wstring_begin(token); !fixed_wstring_getend(token); fixed_wstring_next(token)) {
-		child = acsm_find_child(self, curr, fixed_wstring_get(token));
+	for (wstring_stream_begin(token); !wstring_stream_getend(token); wstring_stream_next(token)) {
+		child = acsm_find_child(self, curr, wstring_stream_get(token));
 		if (!child)
 			return false;
 		curr = child;

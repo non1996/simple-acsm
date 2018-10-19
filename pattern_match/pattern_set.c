@@ -8,12 +8,12 @@
 #define idx_to_id(idx) (idx + 1)
 
 class(pattern_node) {
-	fixed_wstring ptn;
+	wstring_stream ptn;
 	size_t count;
 };
 
 static inline constructor(pattern_node, char *ptn) {
-	fixed_wstring_constructor(&(self->ptn), ptn);
+	wstring_stream_constructor(&(self->ptn), ptn);
 	constructor_end;
 }
 
@@ -30,6 +30,7 @@ static inline void pattern_set_pretreat(pattern_set *self) {
 
 	self->patterns = new(vector);
 
+	log_info("Split pattern file to patterns.");
 	for (start = end = 0; patterns[end] != '\0'; ++end) {
 		if (patterns[end] != LF)
 			continue;
@@ -47,7 +48,7 @@ static inline void pattern_set_pretreat(pattern_set *self) {
 	if (start != end)
 		vector_push_back(self->patterns, new(pattern_node, patterns + start));
 
-	log_debug("%s", ((pattern_node*)vector_back(self->patterns))->ptn.f.buffer);
+	log_info("Total %lu patterns.", vector_size(self->patterns));
 }
 
 constructor(pattern_set, const char *pattern_file) {
@@ -64,13 +65,14 @@ bool pattern_set_init(pattern_set * self) {
 	char *content;
 	size_t len;
 
+	log_notice("Pattern_set init, start loading pattern file %s.", self->pattern_file);
 	if (!util_read_entire_file(self->pattern_file, "rb", &content, &len))
 		return false;
-
-	content[len] = '\0';
 	self->text_patterns = new(fixed_string, content);
+	log_info("Loaded entire pattern file.");
 	pattern_set_pretreat(self);
-	log_notice("Loaded entire pattern file.");
+
+	log_notice("Pattern_set inited.");
 	return true;
 }
 
@@ -78,7 +80,7 @@ bool pattern_set_init_wchar(pattern_set * self) {
 	return false;
 }
 
-fixed_wstring * pattern_set_get(pattern_set * self, size_t id) {
+wstring_stream * pattern_set_get(pattern_set * self, size_t id) {
 	assert(id <= vector_size(self->patterns) && id > 0);	
 	return &(((pattern_node*)vector_at(self->patterns, id_to_idx(id)))->ptn);
 }
@@ -108,7 +110,7 @@ void pattern_set_sort(pattern_set * self) {
 	vector_sort(self->patterns, pattern_set_cmp);
 }
 
-fixed_wstring * pattern_set_curr_pattern(pattern_set * self) {
+wstring_stream * pattern_set_curr_pattern(pattern_set * self) {
 	return &(((pattern_node*)vector_at(self->patterns, self->iter))->ptn);
 }
 

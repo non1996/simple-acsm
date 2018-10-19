@@ -30,15 +30,13 @@ constructor(pattern_match, int argc, char **argv) {
 	else 
 		self->pattern_name = util_cstr_copy("pattern.txt");
 
-	self->patterns = new(pattern_set, self->pattern_name);
-
 	if (argc >= 5) 
 		self->output_name = util_cstr_copy(argv[4]);
 	else 
 		self->output_name = util_cstr_copy("ac_output.txt");
 
+	self->patterns = new(pattern_set, self->pattern_name);
 	self->work = pattern_match_work_ac;
-
 	constructor_end;
 }
 
@@ -58,11 +56,13 @@ static void pattern_match_handle_cb(uint32_t pattern_id, void *arg) {
 
 static inline bool pattern_match_output(pattern_match *self) {
 	if (!(self->ac_output = fopen(self->output_name, "w"))) {
+		log_warm("Couldn't open output file.");
 		return false;
 	}
 	
 	pattern_set_sort(self->patterns);
 
+	log_notice("Ouput result.");
 	for (pattern_set_begin(self->patterns);
 		!pattern_set_getend(self->patterns);
 		pattern_set_next(self->patterns)) {
@@ -76,7 +76,6 @@ static inline bool pattern_match_output(pattern_match *self) {
 }
 
 static bool pattern_match_work_ac(pattern_match *self) {
-	log_notice("Load pattern file.");
 	if (!pattern_set_init(self->patterns))
 		return false;
 
@@ -90,18 +89,14 @@ static bool pattern_match_work_ac(pattern_match *self) {
 			pattern_set_curr_id(self->patterns));
 	}
 
-	log_notice("Prepare acsm.");
 	acsm_compile(self->ac);
 	
-	log_notice("Load string.");
 	self->fs = new(file_stream, self->text_name, 500 * 1024 * 1024);
 
 	acsm_search_init_file(self->ac, self->fs, pattern_match_handle_cb, self);
 
-	log_notice("Search.");
 	acsm_search_ac(self->ac);
 
-	log_notice("Ouput result.");
 	if (!pattern_match_output(self))
 		return false;
 
@@ -110,7 +105,6 @@ static bool pattern_match_work_ac(pattern_match *self) {
 }
 
 static bool pattern_match_work_trie(pattern_match *self) {
-	log_notice("Load pattern file.");
 	if (!pattern_set_init(self->patterns))
 		return false;
 
@@ -126,22 +120,19 @@ static bool pattern_match_work_trie(pattern_match *self) {
 
 	self->fs = new(file_stream, "string_token.txt", 500 * 1024 * 1024);
 
-	log_notice("Search.");
 	acsm_search_init(self->ac, pattern_match_handle_cb, self);
 
-	fixed_wstring *line = new(fixed_wstring, "");
+	wstring_stream *line = new(wstring_stream, "");
 
+	log_notice("Search.");
 	while (file_stream_getline(self->fs, line)) {
 		acsm_search_trie(self->ac, line);
 	}
 	
-	log_notice("Ouput result.");
 	if (!pattern_match_output(self))
 		return false;
 
 	log_notice("Mission completed and Quit.");
-	return true;
-
 	return true;
 }
 

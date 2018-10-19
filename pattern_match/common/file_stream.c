@@ -80,6 +80,8 @@ bool file_stream_open(file_stream * self, size_t buf_size) {
 	self->is_valid = true;
 	file_stream_load_next(self, 0);
 
+	log_notice("Open file %s.", self->filename);
+
 	return true;
 }
 
@@ -104,7 +106,7 @@ void file_stream_clear(file_stream *self) {
 	self->is_valid = false;
 }
 
-bool file_stream_getline(file_stream * self, fixed_wstring *str) {
+bool file_stream_getline(file_stream * self, wstring_stream *str) {
 	assert(str);
 	
 	size_t lf_index = self->buffer_index;

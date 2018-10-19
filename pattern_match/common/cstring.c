@@ -12,11 +12,11 @@ distructor(fixed_string) {
 	mem_free(self->buffer);
 }
 
-constructor(fixed_wstring, char *cstr) {
+constructor(wstring_stream, char *cstr) {
 	fixed_string_constructor((fixed_string*)self, cstr);
 	constructor_end;
 }
 
-distructor(fixed_wstring) {
+distructor(wstring_stream) {
 	mem_free(self->f.buffer);
 }

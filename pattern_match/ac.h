@@ -4,7 +4,7 @@
 #include "allocator.h"
 
 class_decl(file_stream);
-class_decl(fixed_wstring);
+class_decl(wstring_stream);
 class_decl(ac_node);
 class_decl(hashmap);
 ALLOCATOR_DECL(ac_node);
@@ -18,7 +18,7 @@ class(acsm){
 	size_t pattern_num;							//	pattern added to the trie tree
 
 	union {										//	string to be search, use file_stream
-		fixed_wstring *text;					//	or string as input.
+		wstring_stream *text;					//	or string as input.
 		file_stream *fs;
 	};
 
@@ -36,11 +36,11 @@ class(acsm){
 
 constructor(acsm);
 distructor(acsm);
-bool acsm_add_pattern(acsm *self, fixed_wstring *pattern, uint32_t ptn_id);
+bool acsm_add_pattern(acsm *self, wstring_stream *pattern, uint32_t ptn_id);
 //bool acsm_del_pattern(acsm * self, fixed_string *pattern, uint32_t ptn_id);
 void acsm_compile(acsm *self);
 void acsm_search_init(acsm * self, match_handle cb, void * cb_arg);
 bool acsm_search_init_file(acsm *self, file_stream *text, match_handle cb, void *cb_arg);
-bool acsm_search_init_string(acsm *self, fixed_wstring *text, match_handle cb, void *cb_arg);
+bool acsm_search_init_string(acsm *self, wstring_stream *text, match_handle cb, void *cb_arg);
 bool acsm_search_ac(acsm *self);
-bool acsm_search_trie(acsm *self, fixed_wstring *token);
+bool acsm_search_trie(acsm *self, wstring_stream *token);

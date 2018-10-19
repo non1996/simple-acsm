@@ -25,6 +25,7 @@ bool util_read_entire_file(const char *path, const char *mode, char **content, u
 		return false;
 	}
 
+	cont[read] = '\0';
 	*content = cont;
 	*len = read;
 	fclose(file);
