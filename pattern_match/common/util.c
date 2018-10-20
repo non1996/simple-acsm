@@ -1,10 +1,11 @@
 #include "util.h"
 #include "log.h"
+#include <sys/timeb.h>
 
 bool util_read_entire_file(const char *path, const char *mode, char **content, uint32_t *len) {
 	FILE *file;
 	char *cont;
-	size_t read;
+	size_t to_read, read;
 
 	if (!(file = fopen(path, mode))) {
 		log_warm("Could not open file %s.", path);
@@ -12,22 +13,22 @@ bool util_read_entire_file(const char *path, const char *mode, char **content, u
 	}
 
 	fseek(file, 0, SEEK_END);
-	read = ftell(file);
+	to_read = ftell(file);
 	rewind(file);
 
-	cont = mem_alloc_zero(char, read + 1);
-	read = fread(cont, sizeof(char), read, file);
+	cont = mem_alloc_zero(char, to_read + 1);
+	read = fread(cont, 1, to_read, file);
 
-	if (read == 0) {
-		log_warm("Read error, did not read anything.");
+	if (read == 0 || to_read != read) {
+		log_warm("Read error.");
 		mem_free(cont);
 		fclose(file);
 		return false;
 	}
 
-	cont[read] = '\0';
+	cont[to_read] = '\0';
 	*content = cont;
-	*len = read;
+	*len = to_read;
 	fclose(file);
 	return true;
 }
@@ -62,4 +63,10 @@ char * util_cstr_copy(const char * src) {
 	char *temp = mem_alloc(char, strlen(src) + 1);
 	strcpy(temp, src);
 	return temp;
+}
+
+uint64_t get_timestamp() {
+	struct timeb t;
+	ftime(&t);
+	return 1000 * t.time + t.millitm;
 }

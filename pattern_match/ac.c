@@ -5,31 +5,27 @@
 #include "file_stream.h"
 #include "allocator.h"
 
+#define MAX_ALPHABET_SIZE 65536
+#define DEFAULT_HASHMAP_CAP 512
+
 class(ac_node) {
 	p_ac_node h_next;										//	next node in hashmap blanket 
 	p_ac_node child_next, fail, parent, children;
 	uint32_t match_id;										//	pattern who end on this node 
-	union {
-		wchar key;								
-		uint32_t padding;									
-	};
+	wchar key;
+	bool has_match;
+	uint8_t padding;									
 };
-
-//	hash_key = 0000 0000 0000 0000 | parent(32-bit) | key(8-bit) 	
-static inline uint64_t make_key(p_ac_node parent, wchar key) {
-	uint64_t p = (uint64_t)parent << 16;
-	return p | (uint64_t)key;
-}
 
 class(hashmap) {
 	p_ac_node *blanket;
-	size_t capacity;
+	size_t cap;
 	size_t size;
 };
 
-constructor(hashmap, size_t cap) {
-	self->blanket = mem_alloc_zero(p_ac_node, cap);
-	self->capacity = cap;
+constructor(hashmap) {
+	self->blanket = mem_alloc_zero(p_ac_node, DEFAULT_HASHMAP_CAP);
+	self->cap = DEFAULT_HASHMAP_CAP;
 	constructor_end;
 }
 
@@ -37,21 +33,21 @@ distructor(hashmap) {
 	mem_free(self->blanket);
 }
 
-static inline size_t hashmap_hash(hashmap *self, uint64_t key) {
-	uint64_t res = key;
+static inline size_t hashmap_hash(hashmap *self, uint32_t key) {
+	uint32_t res = key;
 	res = ~res + (res << 15);	// res = (res << 15) - res - 1;
 	res = res ^ (res >> 12);
 	res = res + (res << 2);
 	res = res ^ (res >> 4);
 	res = res * 2057;			// res = (res + (res << 3)) + (res << 11);
 	res = res ^ (res >> 16);
-	return (size_t)(res % self->capacity);
+	return (size_t)(res % self->cap);
 }
 
 //	Count how many blankets have elements.
 static inline size_t hashmap_full(hashmap *self) {
 	size_t index, count = 0;
-	for (index = 0; index < self->capacity; ++index)
+	for (index = 0; index < self->cap; ++index)
 		if (self->blanket[index])
 			count++;
 	return count;
@@ -60,7 +56,7 @@ static inline size_t hashmap_full(hashmap *self) {
 static inline size_t hashmap_deepest(hashmap *self) {
 	size_t deepest = 0, depth, index;
 	p_ac_node node;
-	for (index = 0; index < self->capacity; ++index) {
+	for (index = 0; index < self->cap; ++index) {
 		depth = 0;
 		node = self->blanket[index];
 		while (node) {
@@ -74,21 +70,19 @@ static inline size_t hashmap_deepest(hashmap *self) {
 }
 
 static inline void hashmap_insert(hashmap *self, p_ac_node node) {
-	size_t index = hashmap_hash(self, make_key(node->parent, node->key));
+	size_t index = hashmap_hash(self, (uint32_t)node->parent);
 	node->h_next = self->blanket[index];
 	self->blanket[index] = node;
 	self->size++;
 }
 
-static inline p_ac_node hashmap_find(hashmap *self, uint64_t key) {
+static inline p_ac_node hashmap_find(hashmap *self, uint32_t key) {
 	size_t index = hashmap_hash(self, key);
 	p_ac_node iter = self->blanket[index];
-	size_t count = 0;
 	while (iter) {
-		if (make_key(iter->parent, iter->key) == key)
+		if ((uint32_t)iter->parent == key)
 			return iter;
 		iter = iter->h_next;
-		count++;
 	}
 	return nullptr;
 }
@@ -97,13 +91,13 @@ static inline void hashmap_resize(hashmap *self, size_t new_cap) {
 	assert(new_cap != 0);
 
 	size_t index, count = 0;
-	size_t old_cap = self->capacity, old_size = self->size;
+	size_t old_cap = self->cap, old_size = self->size;
 	p_ac_node iter, next;
 	p_ac_node *old_blanket = self->blanket;
+	self->cap = new_cap;
 	p_ac_node *new_blanket = mem_alloc_zero(p_ac_node, new_cap);
 
 	self->blanket = new_blanket;
-	self->capacity = new_cap;
 	self->size = 0;
 
 	for (index = 0; index < old_cap; ++index) {
@@ -156,18 +150,32 @@ constructor(acsm) {
 	self->ac_alloc = allocator_new(ac_node)();
 	self->root = acsm_alloc_node(self, 0x0000u);
 	self->root->fail = self->root;
-	self->nodes = new(hashmap, 1024 * 1024);
+	self->trans_map = mem_alloc_zero(hashmap*, MAX_ALPHABET_SIZE);
 	
 	constructor_end;
 }
 
 distructor(acsm) {
 	allocator_delete(ac_node)(self->ac_alloc);
-	delete(hashmap, self->nodes);
+	int i;
+	for (i = 0; i < MAX_ALPHABET_SIZE; ++i)
+		delete(hashmap, self->trans_map[i]);
 }
 
 static inline p_ac_node acsm_find_child(acsm *self, p_ac_node parent, wchar key) {
-	return hashmap_find(self->nodes, make_key(parent, key));
+	if (self->trans_map[key] == nullptr)
+		return nullptr;
+	return hashmap_find(self->trans_map[key], parent);
+}
+
+static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child) {
+	child->parent = parent;
+	child->child_next = parent->children;
+	parent->children = child;
+
+	if (!self->trans_map[child->key])
+		self->trans_map[child->key] = new(hashmap);
+	hashmap_insert(self->trans_map[child->key], child);
 }
 
 static inline bool acsm_should_insert(acsm *self, wstring_stream *pattern, 
@@ -197,13 +205,6 @@ static inline ac_node *acsm_alloc_node(acsm * self, wchar key) {
 	new_node = allocator_allocate(ac_node)(self->ac_alloc, 1);
 	allocator_construct(ac_node)(new_node, key);
 	return new_node;
-}
-
-static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child) {
-	child->parent = parent;
-	child->child_next = parent->children;
-	parent->children = child;
-	hashmap_insert(self->nodes, child);
 }
 
 static inline ac_node *acsm_construct_branch(acsm * self, wstring_stream *pattern, uint32_t pattern_id) {
@@ -246,17 +247,22 @@ static inline void acsm_children_inqueue(acsm *self, queue *q, p_ac_node parent)
 }
 
 static inline void acsm_find_fail(acsm *self, p_ac_node node) {
-	p_ac_node fail_try = node->parent->fail;
-
 	if (node->parent == self->root) {
 		node->fail = self->root;
+		if (node->match_id != NO_MATCH)
+			node->has_match = true;
 		return;
 	}
 
+	p_ac_node fail_try = node->parent->fail;
+
 	while (true) {
 		node->fail = acsm_find_child(self, fail_try, node->key);
-		if (node->fail != nullptr)
+		if (node->fail != nullptr) {
+			if (node->match_id != NO_MATCH || node->fail->has_match)
+				node->has_match = true;
 			break;
+		}
 		if (fail_try == self->root) {
 			node->fail = self->root;
 			break;
@@ -265,16 +271,34 @@ static inline void acsm_find_fail(acsm *self, p_ac_node node) {
 	}
 }
 
+static void acsm_rehash(acsm *self) {
+	size_t i, max_s = 0, max_i, min_s = UINT_MAX, min_i ;
+	for (i = 0; i < MAX_ALPHABET_SIZE; ++i) {
+		if (self->trans_map[i]) { 
+			if (self->trans_map[i]->size > max_s) {
+				max_s = self->trans_map[i]->size;
+				max_i = i;
+			}
+			if (self->trans_map[i]->size < min_s) {
+				min_s = self->trans_map[i]->size;
+				min_i = i;
+			}
+			if (self->trans_map[i]->size > DEFAULT_HASHMAP_CAP) {
+				hashmap_resize(self->trans_map[i], self->trans_map[i]->size);
+			}
+		}
+	}
+	log_debug("Largest hashmap: %d:%d, lest hashmap: %d:%d", max_i, max_s, min_i, min_s);
+
+	log_debug("Hashmap used blanket %lu/%lu, deepest blanket %lu.", hashmap_full(self->trans_map[max_i]), self->trans_map[max_i]->cap, hashmap_deepest(self->trans_map[max_i]));
+}
+
 void acsm_compile(acsm * self) {
 	p_ac_node curr;
 	queue *wsqueue = new(queue);
 	
 	log_notice("Compile acsm by finding faillink.");
-	log_debug("Hashmap blanket resize to %lu", self->nodes->size);
-	log_debug("Before hashmap rehash, used blanket %lu/%lu, deepest blanket %lu.", hashmap_full(self->nodes), self->nodes->capacity, hashmap_deepest(self->nodes));
-	hashmap_resize(self->nodes, self->nodes->size);
-	log_debug("Hashmap used blanket %lu/%lu, deepest blanket %lu.", hashmap_full(self->nodes), self->nodes->capacity, hashmap_deepest(self->nodes));
-
+	acsm_rehash(self);
 	log_debug("Finding faillink.");
 	acsm_children_inqueue(self, wsqueue, self->root);
 
@@ -345,16 +369,16 @@ bool acsm_search_ac(acsm *self) {
 		child = acsm_find_child(self, self->curr_node, acsm_curr_key(self));
 		
 		if (!child) {
-			if (self->curr_node == self->root) {
+			if (self->curr_node == self->root)
 				acsm_next(self);
-				continue;
-			}
-			self->curr_node = self->curr_node->fail;
+			else
+				self->curr_node = self->curr_node->fail;
+			continue;
 		}
-		else
-			self->curr_node = child;
+		
+		self->curr_node = child;
 
-		if (self->curr_node->match_id != NO_MATCH)
+		if (self->curr_node->has_match)
 			acsm_match(self, self->curr_node);
 
 		acsm_next(self);

@@ -11,6 +11,8 @@
 static inline bool file_stream_load_next(file_stream *self, size_t retain) {
 	static size_t invoke_count = 1;
 
+	log_debug("The %dth, load next file chunk.", invoke_count++);
+
 	assert(retain < self->buffer->cap);
 
 	if (!self->is_valid || (self->file_offset >= self->file_size))
@@ -42,17 +44,17 @@ static inline bool file_stream_load_next(file_stream *self, size_t retain) {
 
 	mem_chunk_use(self->buffer, read + retain);
 
-	log_debug("The %dth, Load next file chunk, curr_file_offset: %d, curr_chunk_offset: %d.", invoke_count++, self->file_offset, self->buffer_index);
+	log_debug("Loaded next file chunk, curr_file_offset: %d, curr_chunk_offset: %d.", self->file_offset, self->buffer_index);
 
 	return true;
 }
 
 static inline void file_stream_skip_lf(file_stream *self) {
-	while (!file_stream_getend(self) && self->buffer->block[self->buffer_index] == LF) {
-		self->buffer_index++;
-		if (self->buffer_index >= self->buffer->used)
-			file_stream_load_next(self, 0);
-	}
+	//while (!file_stream_getend(self) && self->buffer->block[self->buffer_index] == LF) {
+	//	self->buffer_index++;
+	//	if (self->buffer_index >= self->buffer->used)
+	//		file_stream_load_next(self, 0);
+	//}
 }
 
 constructor(file_stream, const char *filename, size_t buf_size) {
@@ -133,7 +135,7 @@ bool file_stream_getline(file_stream * self, wstring_stream *str) {
 }
 
 void file_stream_next(file_stream * self) {
-	if (!self->is_valid)
+	if (file_stream_getend(self))
 		return;
 	util_wchar_next(self->buffer->block, &(self->buffer_index));
 	if (self->buffer_index >= self->buffer->used) {

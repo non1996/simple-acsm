@@ -1,6 +1,7 @@
 #include "log.h"
-
+#include "util.h"
 #include <time.h>
+#include <sys/timeb.h>
 
 typedef struct logfile_t {
 	char *filename;
@@ -113,6 +114,10 @@ void log_print_daytime() {
 	sprintf(time_buf, "%dth %s %d %d:%d:%d.%d", t->tm_mday, month_to_string(t->tm_mon),
 		t->tm_year + 1900, t->tm_hour, t->tm_min, t->tm_sec, curr_msec);
 	printf("%s ", time_buf);
+#else
+	struct timeb t;
+	ftime(&t);
+	printf("%llu.%d ", t.time, t.millitm);
 #endif
 }
 

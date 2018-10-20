@@ -10,7 +10,7 @@ bool util_file_size(const char *path, uint64_t *size);
 
 char *util_cstr_copy(const char *src);
 
-#define GB_MASK ((wchar)0xA0)
+#define GB_MASK ((char)0x80)
 
 static inline bool util_wchar_is_GB2312(char *ch) {
 	return (*ch) & GB_MASK;
@@ -33,3 +33,5 @@ static inline void util_wchar_next(char *ch, size_t *index) {
 	else 
 		*index += 1;
 }
+
+uint64_t get_timestamp();

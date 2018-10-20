@@ -27,7 +27,7 @@ class(acsm){
 	match_handle cb;							//	if a pattern match, call this function to handle
 	void *cb_arg;								//	cb's argument	
 
-	hashmap *nodes;								//	hashmap to contain trie tree nodes
+	hashmap **trans_map;							//	hashmap to contain trie tree nodes
 
 	allocator(ac_node) *ac_alloc;				//	trie tree node allocator
 
