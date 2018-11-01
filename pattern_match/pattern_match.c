@@ -19,7 +19,9 @@ constructor(pattern_match, int argc, char **argv) {
 			self->work = pattern_match_work_trie;
 		else
 			self->work = pattern_match_work_ac;
-
+	else
+		self->work = pattern_match_work_ac;
+		
 	if (argc >= 3)
 		self->text_name = util_cstr_copy(argv[2]);
 	else 
@@ -36,7 +38,7 @@ constructor(pattern_match, int argc, char **argv) {
 		self->output_name = util_cstr_copy("ac_output.txt");
 
 	self->patterns = new(pattern_set, self->pattern_name);
-	self->work = pattern_match_work_trie;
+	
 	constructor_end;
 }
 
