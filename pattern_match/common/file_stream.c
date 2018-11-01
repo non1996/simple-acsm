@@ -126,11 +126,11 @@ bool file_stream_getline(file_stream * self, wstring_stream *str) {
 			lf_index -= self->buffer_index;
 			file_stream_load_next(self, self->buffer->used - self->buffer_index);
 		}
-
 	}
-
+	
 	str->f.buffer = self->buffer->block + self->buffer_index;
 	str->f.size = lf_index - self->buffer_index;
+	self->buffer_index = lf_index + 1;
 	return true;
 }
 

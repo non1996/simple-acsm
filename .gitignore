@@ -9,4 +9,5 @@ pattern_match/pattern.txt
 pattern_match/string.txt
 pattern_match/ac_output.txt
 pattern_match/snort_acsm/
+pattern_match/string_token.txt
 *.exe

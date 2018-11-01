@@ -36,7 +36,7 @@ constructor(pattern_match, int argc, char **argv) {
 		self->output_name = util_cstr_copy("ac_output.txt");
 
 	self->patterns = new(pattern_set, self->pattern_name);
-	self->work = pattern_match_work_ac;
+	self->work = pattern_match_work_trie;
 	constructor_end;
 }
 
@@ -123,9 +123,13 @@ static bool pattern_match_work_trie(pattern_match *self) {
 	acsm_search_init(self->ac, pattern_match_handle_cb, self);
 
 	wstring_stream *line = new(wstring_stream, "");
+	const char *l = "l";
+	size_t count = 0;
 
 	log_notice("Search.");
 	while (file_stream_getline(self->fs, line)) {
+		if (line->f.size == 1 && memcmp(line->f.buffer, l, 1) == 0)
+			count++;
 		acsm_search_trie(self->ac, line);
 	}
 	
