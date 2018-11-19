@@ -117,7 +117,7 @@ void log_print_daytime() {
 #else
 	struct timeb t;
 	ftime(&t);
-	printf("%llu.%d ", t.time, t.millitm);
+	printf("%lu.%d ", t.time, t.millitm);
 #endif
 }
 

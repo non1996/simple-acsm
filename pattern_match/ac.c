@@ -76,11 +76,11 @@ static inline void hashmap_insert(hashmap *self, p_ac_node node) {
 	self->size++;
 }
 
-static inline p_ac_node hashmap_find(hashmap *self, uint32_t key) {
+static inline p_ac_node hashmap_find(hashmap *self, uint64_t key) {
 	size_t index = hashmap_hash(self, key);
 	p_ac_node iter = self->blanket[index];
 	while (iter) {
-		if ((uint32_t)iter->parent == key)
+		if ((uint64_t)iter->parent == key)
 			return iter;
 		iter = iter->h_next;
 	}
@@ -165,7 +165,7 @@ distructor(acsm) {
 static inline p_ac_node acsm_find_child(acsm *self, p_ac_node parent, wchar key) {
 	if (self->trans_map[key] == nullptr)
 		return nullptr;
-	return hashmap_find(self->trans_map[key], parent);
+	return hashmap_find(self->trans_map[key], (uint64_t)parent);
 }
 
 static inline void acsm_add_child(acsm *self, p_ac_node parent, p_ac_node child) {

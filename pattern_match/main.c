@@ -1,7 +1,6 @@
 #include "pattern_match.h"
-#include "test\test_allocator.h"
 
-#define TRIE
+#define AC
 
 int main(int argc, char **argv) {
 	char *pattern_file = "pattern.txt";

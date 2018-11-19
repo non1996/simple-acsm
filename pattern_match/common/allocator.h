@@ -23,7 +23,8 @@ static inline allocator_ ## type *allocator_ ## type ## _new() { \
 	return (allocator_ ## type*)new(raw_allocator); \
 } \
 static inline void allocator_ ## type ## _delete(allocator_ ## type *self) { \
-	delete(raw_allocator, (raw_allocator*)self); \
+	raw_allocator_distructor((raw_allocator*)self); \
+	mem_free(self); \
 } \
 static inline type *allocator_ ## type ## _allocate(allocator_ ## type *self, size_t n) { \
 	return (type*)raw_allocator_allocate((raw_allocator*)self, n, sizeof(type)); \

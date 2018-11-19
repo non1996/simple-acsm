@@ -51,9 +51,13 @@ bool util_file_size(const char * path, uint64_t * size) {
 		log_warm("Could not open file %s.", path);
 		return false;
 	}
-
+#if defined(WIN32)
 	_fseeki64(file, 0, SEEK_END);
 	*size = _ftelli64(file);
+#elif defined(__linux__)
+	fseeko(file, 0, SEEK_END);
+	*size = ftello(file);
+#endif
 	fclose(file);
 	return true;
 }

@@ -1,0 +1,56 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/flyingx/program/1 acsm/simple-acsm/simple-acsm/pattern_match/container/list.c
+list.h
+/home/flyingx/program/1 acsm/simple-acsm/simple-acsm/pattern_match/container/list.h
+
+/home/flyingx/program/1 acsm/simple-acsm/simple-acsm/pattern_match/container/list.h
+pattern_match.h
+/home/flyingx/program/1 acsm/simple-acsm/simple-acsm/pattern_match/container/pattern_match.h
+
+/home/flyingx/program/1 acsm/simple-acsm/simple-acsm/pattern_match/container/vector.c
+vector.h
+/home/flyingx/program/1 acsm/simple-acsm/simple-acsm/pattern_match/container/vector.h
+
+/home/flyingx/program/1 acsm/simple-acsm/simple-acsm/pattern_match/container/vector.h
+afx.h
+/home/flyingx/program/1 acsm/simple-acsm/simple-acsm/pattern_match/container/afx.h
+
+afx.h
+stdint.h
+-
+stdlib.h
+-
+string.h
+-
+stdio.h
+-
+stdbool.h
+-
+assert.h
+-
+stddef.h
+-
+stdarg.h
+-
+limits.h
+-
+mem_alloc.h
+mem_alloc.h
+
+common/mem_alloc.h
+stdlib.h
+-
+assert.h
+-
+
+pattern_match.h
+afx.h
+afx.h
+

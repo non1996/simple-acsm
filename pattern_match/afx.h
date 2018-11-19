@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <limits.h>
 
 #include "mem_alloc.h"
 

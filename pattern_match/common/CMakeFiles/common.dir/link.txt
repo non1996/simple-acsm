@@ -1,0 +1,2 @@
+/usr/bin/ar qc libcommon.a  CMakeFiles/common.dir/allocator.c.o CMakeFiles/common.dir/cstring.c.o CMakeFiles/common.dir/file_stream.c.o CMakeFiles/common.dir/log.c.o CMakeFiles/common.dir/util.c.o
+/usr/bin/ranlib libcommon.a

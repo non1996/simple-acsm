@@ -1,0 +1,1 @@
+/usr/bin/cc    CMakeFiles/pattern_match.dir/ac.c.o CMakeFiles/pattern_match.dir/main.c.o CMakeFiles/pattern_match.dir/pattern_match.c.o CMakeFiles/pattern_match.dir/pattern_set.c.o  -o pattern_match container/libcontainer.a common/libcommon.a 
