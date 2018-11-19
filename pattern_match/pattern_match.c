@@ -120,18 +120,14 @@ static bool pattern_match_work_trie(pattern_match *self) {
 			pattern_set_curr_id(self->patterns));
 	}
 
-	self->fs = new(file_stream, "string_token.txt", 500 * 1024 * 1024);
+	self->fs = new(file_stream, "fenci_result.txt", 500 * 1024 * 1024);
 
 	acsm_search_init(self->ac, pattern_match_handle_cb, self);
 
 	wstring_stream *line = new(wstring_stream, "");
-	const char *l = "l";
-	size_t count = 0;
 
 	log_notice("Search.");
 	while (file_stream_getline(self->fs, line)) {
-		if (line->f.size == 1 && memcmp(line->f.buffer, l, 1) == 0)
-			count++;
 		acsm_search_trie(self->ac, line);
 	}
 	

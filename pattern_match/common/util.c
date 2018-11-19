@@ -1,6 +1,8 @@
 #include "util.h"
 #include "log.h"
+#include <sys/stat.h>
 #include <sys/timeb.h>
+#include <sys/types.h>
 
 bool util_read_entire_file(const char *path, const char *mode, char **content, uint32_t *len) {
 	FILE *file;
@@ -50,8 +52,8 @@ bool util_file_size(const char * path, uint64_t * size) {
 		return false;
 	}
 
-	fseek(file, 0, SEEK_END);
-	*size = ftell(file);
+	_fseeki64(file, 0, SEEK_END);
+	*size = _ftelli64(file);
 	fclose(file);
 	return true;
 }

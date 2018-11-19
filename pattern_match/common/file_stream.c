@@ -40,11 +40,14 @@ static inline bool file_stream_load_next(file_stream *self, size_t retain) {
 	if (!util_read_file(self->handle, buffer, to_read, &read))
 		return false;
 
+	log_debug("to read: %d, read: %d", to_read, read);
 	assert(to_read == read);
 
 	mem_chunk_use(self->buffer, read + retain);
 
-	log_debug("Loaded next file chunk, curr_file_offset: %d, curr_chunk_offset: %d.", self->file_offset, self->buffer_index);
+	log_debug("Loaded next file chunk, file size %llu, curr_file_offset: %llu, "
+		"curr_chunk_offset: %d.", 
+		self->file_size, self->file_offset, self->buffer_index);
 
 	return true;
 }
@@ -127,9 +130,13 @@ bool file_stream_getline(file_stream * self, wstring_stream *str) {
 			file_stream_load_next(self, self->buffer->used - self->buffer_index);
 		}
 	}
-	
+
 	str->f.buffer = self->buffer->block + self->buffer_index;
 	str->f.size = lf_index - self->buffer_index;
+
+	if (str->f.buffer[str->f.size - 1] == MYCR)
+		str->f.size--;
+
 	self->buffer_index = lf_index + 1;
 	return true;
 }

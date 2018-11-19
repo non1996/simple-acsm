@@ -24,7 +24,8 @@ typedef unsigned short wchar;
 
 #define TEST
 
-#define LF (char)0x0a
+#define LF ((char)0x0a)
+#define MYCR ((char)0x0d)
 
 #define new(classname, ...) classname ## _constructor(mem_alloc_zero(classname, 1), ##__VA_ARGS__)
 #define delete(classname, ptr) do { \
